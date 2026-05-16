@@ -1,0 +1,28 @@
+{
+  "name": "@squarely/types",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./order": "./src/order.ts",
+    "./item": "./src/item.ts",
+    "./merchant": "./src/merchant.ts",
+    "./customer": "./src/customer.ts",
+    "./payment": "./src/payment.ts",
+    "./device": "./src/device.ts",
+    "./plan": "./src/plan.ts"
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@squarely/config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

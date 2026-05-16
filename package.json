@@ -1,0 +1,33 @@
+{
+  "name": "squarely",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Enterprise multi-tenant POS / Kiosk / KDS SaaS — Square replica",
+  "packageManager": "pnpm@10.4.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,md,json}\"",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:reset": "supabase db reset",
+    "mobile:ios": "pnpm --filter @squarely/mobile ios",
+    "mobile:android": "pnpm --filter @squarely/mobile android",
+    "web:admin": "pnpm --filter @squarely/web-admin dev",
+    "web:marketing": "pnpm --filter @squarely/marketing dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.6.3",
+    "prettier": "^3.4.2",
+    "@types/node": "^20.17.10"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@squarely/config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.js",
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.next.json",
+    "tsconfig.expo.json",
+    "tsconfig.package.json",
+    "eslint.base.cjs",
+    "eslint.next.cjs",
+    "eslint.expo.cjs",
+    "tailwind.preset.ts"
+  ]
+}
