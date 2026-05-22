@@ -5,6 +5,7 @@ const IS_DEV = process.env.APP_VARIANT === "development";
 const config: ExpoConfig = {
   name: IS_DEV ? "Squarely (Dev)" : "Squarely",
   slug: "squarely",
+  owner: "harshakolla90s-organization",
   scheme: "squarely",
   version: "0.0.1",
   orientation: "default",
@@ -42,14 +43,17 @@ const config: ExpoConfig = {
       "expo-camera",
       { cameraPermission: "Squarely uses your camera to scan barcodes." },
     ],
-    "expo-barcode-scanner",
+    [
+      "expo-build-properties",
+      { android: { kotlinVersion: "1.9.25" } },
+    ],
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     revenuecatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
     revenuecatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
-    eas: { projectId: "" },
+    eas: { projectId: "8b898bf1-15e6-4f5b-9ab6-5c1b1b5e2122" },
   },
 };
 

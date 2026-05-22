@@ -6,5 +6,15 @@ export default async function Index() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  redirect(user ? "/dashboard" : "/login");
+
+  if (!user) redirect("/login");
+
+  // Platform admins land on the super-admin console.
+  const { data: isAdmin } = await (supabase as any)
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  redirect(isAdmin ? "/admin" : "/dashboard");
 }

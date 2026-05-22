@@ -15,6 +15,7 @@
     "@squarely/billing": "workspace:*",
     "@squarely/db": "workspace:*",
     "@squarely/feature-flags": "workspace:*",
+    "@squarely/payments": "workspace:*",
     "@squarely/types": "workspace:*",
     "@squarely/ui-web": "workspace:*",
     "@supabase/ssr": "^0.5.2",

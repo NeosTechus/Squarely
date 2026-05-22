@@ -39,6 +39,69 @@ squarely/
 │   └── seed.sql
 ```
 
+## Architecture at a glance
+
+A new developer's mental model of how the pieces fit together:
+
+```
+                          ┌─────────────────────────────────────────┐
+                          │            SQUARELY MONOREPO              │
+                          │   (pnpm workspaces + Turborepo, TS)       │
+                          └─────────────────────────────────────────┘
+                                          │
+        ┌─────────────────────────────────┼─────────────────────────────────┐
+        │                                 │                                 │
+   ┌────▼─────┐                     ┌─────▼──────┐                    ┌──────▼──────┐
+   │  apps/   │                     │ packages/  │                    │  supabase/  │
+   │ (3 apps) │   ── import ──▶     │ (shared)   │   ◀── talk to ──   │  (backend)  │
+   └────┬─────┘                     └─────┬──────┘                    └──────┬──────┘
+        │                                 │                                  │
+  ┌─────┴───────────┐         ┌───────────┴────────────┐          ┌──────────┴──────────┐
+  │                 │         │                          │          │                     │
+  ▼                 ▼         ▼                          ▼          ▼                     ▼
+
+ MARKETING        WEB-ADMIN    MOBILE              SHARED LOGIC      DATABASE          EDGE FUNCTIONS
+ (Next.js)        (Next.js)    (Expo/RN)           packages:        migrations/        functions/
+ :3001            :3000        iOS+Android                          (Postgres+RLS)
+                                                   • types   (Zod)
+ Public site      Merchant     POS / Kiosk         • db      (Supabase clients)   ┌─ Valor (payments)
+ landing/pricing  dashboard    KDS / Admin         • auth    (multi-tenant)       ├─ print-dispatch
+                                                   • api-client (TanStack Query)   ├─ stripe-webhook
+                                                   • payments  (Valor adapter)     └─ revenuecat-webhook
+                                                   • printing  (Epson ePOS)
+                                                   • billing   (Stripe)
+                                                   • feature-flags (plan gating)
+                                                   • ui-mobile  (NativeWind)
+                                                   • ui-web     (shadcn-style)
+                                                   • config     (shared presets)
+```
+
+### Request / data flow
+
+```
+  User action (web or mobile)
+        │
+        ▼
+  App calls packages/api-client  ──▶ uses packages/db (Supabase client)
+        │                                     │
+        │                                     ▼
+        │                          Supabase (Postgres + Auth)
+        │                                     │
+        │                          Row-Level Security checks:
+        │                          "is this user a member of this merchant?"
+        │                                     │
+        ▼                                     ▼
+  packages/auth resolves           Returns only that merchant's rows
+  active_merchant_id from JWT      (multi-tenant isolation)
+```
+
+### Where to start
+
+1. `pnpm install` → `pnpm dev` (starts the web apps).
+2. Read `packages/types` first — the Zod schemas *are* the data model.
+3. Then `supabase/migrations` — the actual DB shape + RLS security rules.
+4. Then pick an app in `apps/` and follow its imports back into `packages/`.
+
 ## First-time setup
 
 ```bash

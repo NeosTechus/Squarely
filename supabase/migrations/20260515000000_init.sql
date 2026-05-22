@@ -431,7 +431,7 @@ do $$
 declare t text;
 begin
   for t in select unnest(array[
-    'locations','categories','modifier_groups','modifier_options','items','inventory_levels',
+    'locations','categories','modifier_groups','items','inventory_levels',
     'customers','loyalty_accounts','loyalty_transactions',
     'orders','terminals','printers','devices','payments','payment_events','receipts','audit_events'
   ]) loop
@@ -442,6 +442,16 @@ begin
     $p$, t, t, t, t);
   end loop;
 end$$;
+
+-- modifier_options has no merchant_id; scope via parent modifier_groups.
+create policy modifier_options_select on modifier_options for select using (
+  exists (select 1 from modifier_groups g where g.id = modifier_options.group_id and public.is_member_of(g.merchant_id))
+);
+create policy modifier_options_write on modifier_options for all using (
+  exists (select 1 from modifier_groups g where g.id = modifier_options.group_id and g.merchant_id = public.active_merchant_id())
+) with check (
+  exists (select 1 from modifier_groups g where g.id = modifier_options.group_id and g.merchant_id = public.active_merchant_id())
+);
 
 -- order_items and order_item_modifiers join via their parent order's merchant.
 create policy oi_select on order_items for select using (
