@@ -107,4 +107,3 @@ vercel --prod      # build and deploy to production
 
 Set env vars via the dashboard or `vercel env add <NAME> production`. Repeat
 from `apps/marketing` for the marketing project.
-Deploy test: 2026-05-23 13:09
