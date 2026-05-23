@@ -159,19 +159,93 @@ export default function Home() {
             screen, and back office.
           </p>
         </Reveal>
-        <div className="mt-14 grid gap-5 md:grid-cols-3">
-          {[
-            { icon: <ShoppingBag />, title: "Point of Sale", body: "Fast cart, modifiers, split tender, tips, and instant receipts." },
-            { icon: <Smartphone />, title: "Self-order Kiosk", body: "A locked-down, branded ordering screen your customers run themselves." },
-            { icon: <Tv2 />, title: "Kitchen Display", body: "Orders hit the kitchen in real time with prep timers and status." },
-            { icon: <Boxes />, title: "Inventory", body: "Items, categories, modifiers, stock levels, and low-stock alerts." },
-            { icon: <Users />, title: "Customers & Loyalty", body: "Directory, order history, and points to keep regulars coming back." },
-            { icon: <BadgeCheck />, title: "Reports & Analytics", body: "Live revenue, top items, and trends across every location." },
-          ].map((f, i) => (
-            <Reveal key={f.title} delay={i * 80}>
-              <Feature icon={f.icon} title={f.title} body={f.body} />
-            </Reveal>
-          ))}
+        {/* Bento grid — varied sizes + live visuals */}
+        <div className="mt-14 grid auto-rows-[minmax(0,1fr)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {/* POS — wide, dark, with a mini register visual */}
+          <Reveal className="lg:col-span-4">
+            <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-slate-950 p-7 text-white">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-600/30 blur-3xl transition group-hover:bg-brand-500/40" />
+              <div className="relative flex items-start justify-between gap-6">
+                <div className="max-w-sm">
+                  <BentoIcon dark><ShoppingBag size={20} /></BentoIcon>
+                  <h3 className="mt-4 text-2xl font-semibold">Point of Sale</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                    A register built for speed — cart, modifiers, split tender, tips, and instant
+                    receipts. Card or cash, on any device.
+                  </p>
+                </div>
+                {/* mini register tiles */}
+                <div className="hidden shrink-0 grid-cols-2 gap-2 sm:grid">
+                  {["from-amber-300/80 to-amber-500/80", "from-sky-300/80 to-sky-500/80", "from-rose-300/80 to-rose-500/80", "from-emerald-300/80 to-emerald-500/80"].map((g, i) => (
+                    <div key={i} className={`h-12 w-16 rounded-lg bg-gradient-to-br ${g}`} />
+                  ))}
+                  <div className="col-span-2 rounded-lg bg-brand-600 py-1.5 text-center text-xs font-semibold">Charge · $8.70</div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+
+          {/* Kiosk — tall accent */}
+          <Reveal className="lg:col-span-2" delay={80}>
+            <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-7 transition hover:-translate-y-1 hover:shadow-lg">
+              <BentoIcon><Smartphone size={20} /></BentoIcon>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">Self-order Kiosk</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Turn any tablet into a locked-down, branded ordering screen customers run themselves.
+              </p>
+            </div>
+          </Reveal>
+
+          {/* KDS */}
+          <Reveal className="lg:col-span-2" delay={160}>
+            <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
+              <BentoIcon><Tv2 size={20} /></BentoIcon>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">Kitchen Display</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Orders hit the kitchen in real time with prep timers and live status.
+              </p>
+            </div>
+          </Reveal>
+
+          {/* Inventory */}
+          <Reveal className="lg:col-span-2" delay={80}>
+            <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
+              <BentoIcon><Boxes size={20} /></BentoIcon>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">Inventory</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Items, categories, modifiers, stock levels, and low-stock alerts.
+              </p>
+            </div>
+          </Reveal>
+
+          {/* Customers */}
+          <Reveal className="lg:col-span-2" delay={160}>
+            <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
+              <BentoIcon><Users size={20} /></BentoIcon>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">Customers &amp; Loyalty</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Directory, order history, and points to keep regulars coming back.
+              </p>
+            </div>
+          </Reveal>
+
+          {/* Reports — wide, with a mini bar chart */}
+          <Reveal className="lg:col-span-2" delay={240}>
+            <div className="group flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-7 transition hover:-translate-y-1 hover:shadow-lg">
+              <div>
+                <BentoIcon><BadgeCheck size={20} /></BentoIcon>
+                <h3 className="mt-4 text-xl font-semibold text-slate-900">Reports &amp; Analytics</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Live revenue, top items, and trends across every location.
+                </p>
+              </div>
+              <div className="mt-5 flex h-12 items-end gap-1.5">
+                {[40, 65, 50, 80, 60, 95, 72].map((h, i) => (
+                  <div key={i} className="flex-1 rounded-t bg-brand-500/80" style={{ height: `${h}%` }} />
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -318,21 +392,20 @@ export default function Home() {
   );
 }
 
-function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+function BentoIcon({ children, dark }: { children: React.ReactNode; dark?: boolean }) {
   return (
-    <div className="group relative rounded-2xl border border-slate-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-transparent hover:shadow-lg">
-      {/* gradient accent ring revealed on hover */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-400 via-brand-500 to-brand-300 opacity-0 transition-opacity duration-300 [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask-composite:exclude] [padding:1px] group-hover:opacity-100" />
-      <div className="relative">
-        <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-brand-600/30">
-          {icon}
-        </div>
-        <div className="text-lg font-semibold text-slate-900">{title}</div>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{body}</p>
-      </div>
+    <div
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-xl transition ${
+        dark
+          ? "bg-white/10 text-white ring-1 ring-white/15"
+          : "bg-brand-50 text-brand-700 group-hover:bg-brand-600 group-hover:text-white"
+      }`}
+    >
+      {children}
     </div>
   );
 }
+
 
 function Highlight({
   eyebrow,
