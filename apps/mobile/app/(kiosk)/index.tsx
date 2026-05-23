@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground } from "react-native";
+import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +26,7 @@ export default function Kiosk() {
   const [step, setStep] = useState<"welcome" | "menu" | "done">("welcome");
   const [lines, setLines] = useState<Line[]>([]);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
+  const [receipt, setReceipt] = useState<{ lines: Line[]; subtotal: number } | null>(null);
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
@@ -94,6 +95,7 @@ export default function Kiosk() {
       return created.number;
     },
     onSuccess: (number) => {
+      setReceipt({ lines, subtotal });
       setOrderNumber(number);
       setLines([]);
       setStep("done");
@@ -129,19 +131,65 @@ export default function Kiosk() {
 
   // ---- CONFIRMATION ----
   if (step === "done") {
+    const resetForNewOrder = () => {
+      setOrderNumber(null);
+      setReceipt(null);
+      setStep("welcome");
+    };
     return (
       <ScreenContainer>
         <Pressable
-          className="flex-1 items-center justify-center bg-emerald-600 active:opacity-95"
-          onPress={() => {
-            setOrderNumber(null);
-            setStep("welcome");
-          }}
+          className="flex-1 items-center justify-center bg-slate-50 active:opacity-95"
+          onPress={resetForNewOrder}
         >
-          <Text className="text-5xl font-bold text-white">Thank you! 🎉</Text>
-          <Text className="mt-4 text-3xl text-emerald-50">Order #{orderNumber}</Text>
-          <Text className="mt-2 text-xl text-emerald-100">Please pay at the counter</Text>
-          <Text className="mt-12 text-base text-emerald-200">Tap anywhere for a new order</Text>
+          <View className="w-full max-w-2xl items-center px-6">
+            <Text className="text-6xl font-bold" style={{ color: brand }}>
+              Thank you! 🎉
+            </Text>
+            <Text className="mt-3 text-4xl font-semibold text-slate-800">
+              Order #{orderNumber}
+            </Text>
+
+            <View className="mt-8 w-full rounded-3xl border border-slate-200 bg-white p-6">
+              <Text className="mb-4 text-2xl font-bold text-slate-800">Your receipt</Text>
+              <ScrollView className="max-h-80" showsVerticalScrollIndicator>
+                {(receipt?.lines ?? []).map((l) => (
+                  <View
+                    key={l.item_id}
+                    className="mb-3 flex-row items-center justify-between"
+                  >
+                    <Text className="flex-1 pr-3 text-xl text-slate-700">
+                      {l.qty} × {l.name}
+                    </Text>
+                    <Text className="text-xl font-medium text-slate-800">
+                      {fmt(l.price_cents * l.qty)}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+              <View className="mt-2 flex-row justify-between border-t-2 border-slate-200 pt-4">
+                <Text className="text-2xl font-bold text-slate-900">Total</Text>
+                <Text className="text-2xl font-bold" style={{ color: brand }}>
+                  {fmt(receipt?.subtotal ?? 0)}
+                </Text>
+              </View>
+            </View>
+
+            <Text className="mt-6 text-2xl font-semibold text-slate-700">
+              Please pay at the counter
+            </Text>
+
+            <Pressable
+              onPress={resetForNewOrder}
+              className="mt-8 w-full items-center rounded-2xl py-5 active:opacity-90"
+              style={{ backgroundColor: brand }}
+            >
+              <Text className="text-2xl font-bold text-white">Start new order</Text>
+            </Pressable>
+            <Text className="mt-4 text-base text-slate-400">
+              Tap anywhere for a new order
+            </Text>
+          </View>
         </Pressable>
       </ScreenContainer>
     );

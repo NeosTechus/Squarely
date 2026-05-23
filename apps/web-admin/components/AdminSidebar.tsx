@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, ScrollText, Menu, X } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/plans", label: "Plans", icon: Package },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/admins", label: "Platform admins", icon: ShieldCheck },
+  { href: "/admin/audit", label: "Audit log", icon: ScrollText },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

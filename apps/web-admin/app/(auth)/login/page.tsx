@@ -78,6 +78,12 @@ export default function Login() {
           </Button>
         </form>
 
+        <p className="mt-3 text-center text-sm">
+          <Link href="/forgot-password" className="text-brand-700 underline">
+            Forgot password?
+          </Link>
+        </p>
+
         <p className="mt-4 text-center text-sm text-slate-600">
           New to Squarely?{" "}
           <Link href="/signup" className="text-brand-700 underline">

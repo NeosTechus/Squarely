@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { setImpersonatedMerchant } from "@/lib/impersonation";
-import { setSuspended, changePlan, resetOwnerPassword } from "./actions";
+import { setSuspended, changePlan, resetOwnerPassword, logImpersonation } from "./actions";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
 const FEATURES: { key: FeatureKey; label: string }[] = [
@@ -429,6 +429,8 @@ function OpenDashboardButton({ merchantId }: { merchantId: string }) {
   return (
     <button
       onClick={() => {
+        // Fire-and-forget audit; never block navigation.
+        void logImpersonation(merchantId).catch(() => {});
         setImpersonatedMerchant(merchantId);
         qc.clear();
         router.push("/dashboard");

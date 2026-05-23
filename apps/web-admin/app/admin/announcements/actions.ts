@@ -1,6 +1,7 @@
 "use server";
 
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
+import { sendEmail } from "@/lib/email";
 
 export type AnnouncementRow = {
   id: string;
@@ -70,6 +71,28 @@ export async function createAnnouncement(input: {
     .from("announcements")
     .insert({ title, body, active: true });
   if (error) return { ok: false, error: error.message };
+
+  // Notify all merchant owners. Email failure must never break creation.
+  try {
+    const { data: merchants } = await (svc as any)
+      .from("merchants")
+      .select("email");
+    const recipients = ((merchants ?? []) as { email: string | null }[])
+      .map((m) => m.email)
+      .filter((e): e is string => !!e);
+
+    if (recipients.length > 0) {
+      const escape = (s: string) =>
+        s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      const html = `<h2>${escape(title)}</h2><p>${escape(body).replace(/\n/g, "<br/>")}</p>`;
+      await sendEmail({ to: recipients, subject: title, html });
+    }
+  } catch (e) {
+    console.error("[announcements] failed to send notification emails", e);
+  }
 
   return { ok: true };
 }

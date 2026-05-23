@@ -13,7 +13,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
  * service-role client on success, or an error result.
  */
 async function requirePlatformAdmin(): Promise<
-  { ok: true; svc: ReturnType<typeof getServiceSupabase> } | { ok: false; error: string }
+  | { ok: true; svc: ReturnType<typeof getServiceSupabase>; actorId: string }
+  | { ok: false; error: string }
 > {
   const server = await getServerSupabase();
   const {
@@ -29,7 +30,27 @@ async function requirePlatformAdmin(): Promise<
     .maybeSingle();
   if (!admin) return { ok: false, error: "Not authorized." };
 
-  return { ok: true, svc };
+  return { ok: true, svc, actorId: user.id };
+}
+
+/**
+ * Best-effort audit logging. Wrapped so a logging failure never breaks the
+ * action that triggered it.
+ */
+async function recordAudit(
+  svc: ReturnType<typeof getServiceSupabase>,
+  row: { actor: string; action: string; merchant_id: string; detail?: string },
+): Promise<void> {
+  try {
+    await (svc as any).from("admin_audit").insert({
+      actor: row.actor,
+      action: row.action,
+      merchant_id: row.merchant_id,
+      detail: row.detail ?? null,
+    });
+  } catch {
+    // Swallow: auditing must never break the underlying action.
+  }
 }
 
 /** Platform-admin action: suspend or reactivate a merchant. */
@@ -39,13 +60,19 @@ export async function setSuspended(
 ): Promise<ActionResult> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { error } = await (svc as any)
     .from("merchants")
     .update({ suspended })
     .eq("id", merchantId);
   if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: suspended ? "suspend" : "reactivate",
+    merchant_id: merchantId,
+  });
   return { ok: true };
 }
 
@@ -56,7 +83,7 @@ export async function changePlan(
 ): Promise<ActionResult> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { data: plan } = await (svc as any)
     .from("plans")
@@ -89,6 +116,13 @@ export async function changePlan(
     });
     if (error) return { ok: false, error: error.message };
   }
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "change_plan",
+    merchant_id: merchantId,
+    detail: planTier,
+  });
   return { ok: true };
 }
 
@@ -103,7 +137,7 @@ export async function resetOwnerPassword(
 
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { data: owner } = await (svc as any)
     .from("merchant_members")
@@ -117,6 +151,12 @@ export async function resetOwnerPassword(
     password: newPassword,
   });
   if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "reset_password",
+    merchant_id: merchantId,
+  });
   return { ok: true };
 }
 
@@ -214,5 +254,26 @@ export async function onboardMerchant(input: {
     app_metadata: { active_merchant_id: merchant.id },
   });
 
+  await recordAudit(svc, {
+    actor: user.id,
+    action: "onboard",
+    merchant_id: merchant.id,
+    detail: planTier,
+  });
+
   return { ok: true, merchantId: merchant.id };
+}
+
+/** Platform-admin action: record an impersonation ("view as") event. */
+export async function logImpersonation(merchantId: string): Promise<ActionResult> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { svc, actorId } = auth;
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "view_as",
+    merchant_id: merchantId,
+  });
+  return { ok: true };
 }
