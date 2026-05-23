@@ -160,32 +160,45 @@ export default function Home() {
           </p>
         </Reveal>
         {/* Bento grid — varied sizes + live visuals */}
-        <div className="mt-14 grid auto-rows-[minmax(0,1fr)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          {/* POS — wide, dark, with a mini register visual */}
-          <Reveal className="lg:col-span-4">
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-6">
+          {/* POS — tall hero tile with a full register preview */}
+          <Reveal className="lg:col-span-4 lg:row-span-2">
             <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-slate-950 p-7 text-white">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-600/30 blur-3xl transition group-hover:bg-brand-500/40" />
-              <div className="relative flex items-start justify-between gap-6">
-                <div className="max-w-sm">
-                  <BentoIcon dark><ShoppingBag size={20} /></BentoIcon>
-                  <h3 className="mt-4 text-2xl font-semibold">Point of Sale</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                    A register built for speed — cart, modifiers, split tender, tips, and instant
-                    receipts. Card or cash, on any device.
-                  </p>
-                </div>
-                {/* mini register tiles */}
-                <div className="hidden shrink-0 grid-cols-2 gap-2 sm:grid">
-                  {["from-amber-300/80 to-amber-500/80", "from-sky-300/80 to-sky-500/80", "from-rose-300/80 to-rose-500/80", "from-emerald-300/80 to-emerald-500/80"].map((g, i) => (
-                    <div key={i} className={`h-12 w-16 rounded-lg bg-gradient-to-br ${g}`} />
+              <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-brand-600/30 blur-3xl transition group-hover:bg-brand-500/40" />
+              <div className="relative">
+                <BentoIcon dark><ShoppingBag size={20} /></BentoIcon>
+                <h3 className="mt-4 text-2xl font-semibold">Point of Sale</h3>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-300">
+                  A register built for speed — cart, modifiers, split tender, tips, and instant
+                  receipts. Card or cash, on any device.
+                </p>
+              </div>
+              {/* full register preview fills the height */}
+              <div className="relative mt-6 flex flex-1 flex-col rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur">
+                <div className="grid flex-1 grid-cols-3 gap-2.5">
+                  {[
+                    ["Espresso", "from-amber-300/80 to-amber-500/80"],
+                    ["Latte", "from-sky-300/80 to-sky-500/80"],
+                    ["Cold Brew", "from-indigo-300/80 to-indigo-500/80"],
+                    ["Croissant", "from-rose-300/80 to-rose-500/80"],
+                    ["Avocado", "from-emerald-300/80 to-emerald-500/80"],
+                    ["Mocha", "from-fuchsia-300/80 to-fuchsia-500/80"],
+                  ].map(([n, g]) => (
+                    <div key={n} className="rounded-lg bg-white/5 p-2">
+                      <div className={`mb-1.5 h-8 rounded-md bg-gradient-to-br ${g}`} />
+                      <div className="text-[10px] font-medium text-slate-200">{n}</div>
+                    </div>
                   ))}
-                  <div className="col-span-2 rounded-lg bg-brand-600 py-1.5 text-center text-xs font-semibold">Charge · $8.70</div>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+                  <span className="text-sm text-slate-300">Total · $8.70</span>
+                  <span className="rounded-lg bg-brand-600 px-4 py-1.5 text-xs font-semibold">Charge</span>
                 </div>
               </div>
             </div>
           </Reveal>
 
-          {/* Kiosk — tall accent */}
+          {/* Kiosk — tall accent + welcome preview */}
           <Reveal className="lg:col-span-2" delay={80}>
             <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-gradient-to-br from-brand-50 to-white p-7 transition hover:-translate-y-1 hover:shadow-lg">
               <BentoIcon><Smartphone size={20} /></BentoIcon>
@@ -193,10 +206,14 @@ export default function Home() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Turn any tablet into a locked-down, branded ordering screen customers run themselves.
               </p>
+              <div className="mt-5 flex flex-1 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 py-6 text-center text-white">
+                <div className="text-base font-bold">Welcome</div>
+                <div className="mt-0.5 text-[10px] text-brand-50">Tap to start your order</div>
+              </div>
             </div>
           </Reveal>
 
-          {/* KDS */}
+          {/* KDS — live tickets preview */}
           <Reveal className="lg:col-span-2" delay={160}>
             <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
               <BentoIcon><Tv2 size={20} /></BentoIcon>
@@ -204,10 +221,21 @@ export default function Home() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Orders hit the kitchen in real time with prep timers and live status.
               </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                {[
+                  ["#128", "received", "border-amber-200 bg-amber-50 text-amber-700"],
+                  ["#129", "preparing", "border-sky-200 bg-sky-50 text-sky-700"],
+                ].map(([n, s, cls]) => (
+                  <div key={n} className={`rounded-lg border p-2 ${cls}`}>
+                    <div className="text-xs font-bold text-slate-800">{n}</div>
+                    <div className="mt-1 text-[9px] font-medium capitalize">{s}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </Reveal>
 
-          {/* Inventory */}
+          {/* Inventory — stock list preview */}
           <Reveal className="lg:col-span-2" delay={80}>
             <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
               <BentoIcon><Boxes size={20} /></BentoIcon>
@@ -215,10 +243,22 @@ export default function Home() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Items, categories, modifiers, stock levels, and low-stock alerts.
               </p>
+              <div className="mt-5 space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-[11px]">
+                {[
+                  ["Espresso", "100", "text-slate-500"],
+                  ["Cold Brew", "8 · low", "font-semibold text-amber-600"],
+                  ["Croissant", "64", "text-slate-500"],
+                ].map(([n, q, cls]) => (
+                  <div key={n} className="flex justify-between">
+                    <span className="text-slate-700">{n}</span>
+                    <span className={cls}>{q}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </Reveal>
 
-          {/* Customers */}
+          {/* Customers — loyalty preview */}
           <Reveal className="lg:col-span-2" delay={160}>
             <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-7 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
               <BentoIcon><Users size={20} /></BentoIcon>
@@ -226,23 +266,39 @@ export default function Home() {
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 Directory, order history, and points to keep regulars coming back.
               </p>
+              <div className="mt-5 space-y-2">
+                {[
+                  ["AM", "Ava Martinez", "120 pts", "bg-rose-100 text-rose-700"],
+                  ["LC", "Liam Chen", "40 pts", "bg-sky-100 text-sky-700"],
+                ].map(([in_, nm, pts, cls]) => (
+                  <div key={nm} className="flex items-center gap-2.5 rounded-lg border border-slate-100 p-2">
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${cls}`}>{in_}</span>
+                    <span className="text-[11px] font-medium text-slate-700">{nm}</span>
+                    <span className="ml-auto text-[10px] font-semibold text-brand-600">{pts}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </Reveal>
 
-          {/* Reports — wide, with a mini bar chart */}
+          {/* Reports — with a mini bar chart */}
           <Reveal className="lg:col-span-2" delay={240}>
-            <div className="group flex h-full flex-col justify-between rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-7 transition hover:-translate-y-1 hover:shadow-lg">
-              <div>
-                <BentoIcon><BadgeCheck size={20} /></BentoIcon>
-                <h3 className="mt-4 text-xl font-semibold text-slate-900">Reports &amp; Analytics</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Live revenue, top items, and trends across every location.
-                </p>
-              </div>
-              <div className="mt-5 flex h-12 items-end gap-1.5">
-                {[40, 65, 50, 80, 60, 95, 72].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-t bg-brand-500/80" style={{ height: `${h}%` }} />
-                ))}
+            <div className="group flex h-full flex-col rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-7 transition hover:-translate-y-1 hover:shadow-lg">
+              <BentoIcon><BadgeCheck size={20} /></BentoIcon>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900">Reports &amp; Analytics</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Live revenue, top items, and trends across every location.
+              </p>
+              <div className="mt-auto flex items-center justify-between pt-5">
+                <div>
+                  <div className="text-lg font-bold text-slate-900">$636</div>
+                  <div className="text-[10px] text-emerald-600">▲ 18% this week</div>
+                </div>
+                <div className="flex h-12 items-end gap-1">
+                  {[40, 65, 50, 80, 60, 95, 72].map((h, i) => (
+                    <div key={i} className="w-1.5 rounded-t bg-brand-500/80" style={{ height: `${h}%` }} />
+                  ))}
+                </div>
               </div>
             </div>
           </Reveal>
