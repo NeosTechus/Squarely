@@ -3,25 +3,35 @@ import { MARKETING_URL } from "@/lib/marketingUrl";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-screen">
-      {/* Back-to-marketing header */}
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-4">
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Premium gradient backdrop */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-slate-950 via-brand-900 to-slate-900" />
+      {/* Soft brand glows */}
+      <div className="pointer-events-none absolute -left-32 -top-32 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-600/30 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 -z-10 h-[32rem] w-[32rem] rounded-full bg-brand-500/20 blur-3xl" />
+      {/* Subtle grid texture */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+        }}
+      />
+
+      {/* Logo (also the way back to marketing) */}
+      <header className="absolute inset-x-0 top-0 z-10 px-6 py-5">
         <a
           href={MARKETING_URL}
-          className="flex items-center gap-2 text-lg font-bold tracking-tight text-slate-900 hover:opacity-80"
+          className="inline-flex items-center gap-2 text-lg font-bold tracking-tight text-white hover:opacity-90"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-sm text-white">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-sm backdrop-blur">
             S
           </span>
           Squarely
         </a>
-        <a
-          href={MARKETING_URL}
-          className="text-sm font-medium text-slate-500 hover:text-slate-900"
-        >
-          ← Back to site
-        </a>
       </header>
+
       {children}
     </div>
   );
