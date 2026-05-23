@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       const sub = event.data.object;
       const row = subscriptionFromStripeEvent(sub);
       if (!row.merchant_id) break;
-      await supabase.from("subscriptions").upsert({
+      await (supabase as any).from("subscriptions").upsert({
         merchant_id: row.merchant_id,
         stripe_subscription_id: row.stripe_subscription_id,
         status: row.status,

@@ -29,3 +29,8 @@ drop policy if exists aa_admin_write on admin_audit;
 create policy aa_admin_write on admin_audit for all using (public.is_platform_admin()) with check (public.is_platform_admin());
 
 grant select, insert, update, delete on announcements, admin_audit to anon, authenticated, service_role;
+
+-- Kiosk landing customization (owner-editable via Settings).
+alter table merchants add column if not exists kiosk_image_url text;
+alter table merchants add column if not exists kiosk_headline text;
+alter table merchants add column if not exists kiosk_subtext text;

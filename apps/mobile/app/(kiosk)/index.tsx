@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { View, Text, Pressable, FlatList, ActivityIndicator, Image } from "react-native";
+import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
+import { useKioskConfig } from "@/lib/useKioskConfig";
 
 interface MenuItem {
   id: string;
@@ -28,6 +29,7 @@ export default function Kiosk() {
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
+  const kiosk = useKioskConfig();
 
   const { data: items = [], isLoading } = useQuery({
     enabled: Boolean(merchantId) && step === "menu",
@@ -103,12 +105,23 @@ export default function Kiosk() {
     return (
       <ScreenContainer>
         <Pressable
-          className="flex-1 items-center justify-center active:opacity-95"
+          className="flex-1 active:opacity-95"
           style={{ backgroundColor: brand }}
           onPress={() => setStep("menu")}
         >
-          <Text className="text-6xl font-bold text-white">Welcome</Text>
-          <Text className="mt-4 text-2xl text-brand-50">Tap anywhere to start your order</Text>
+          {kiosk.imageUrl ? (
+            <ImageBackground source={{ uri: kiosk.imageUrl }} resizeMode="cover" className="flex-1">
+              <View className="flex-1 items-center justify-center bg-black/40">
+                <Text className="text-6xl font-bold text-white">{kiosk.headline}</Text>
+                <Text className="mt-4 text-2xl text-white">{kiosk.subtext}</Text>
+              </View>
+            </ImageBackground>
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-6xl font-bold text-white">{kiosk.headline}</Text>
+              <Text className="mt-4 text-2xl text-brand-50">{kiosk.subtext}</Text>
+            </View>
+          )}
         </Pressable>
       </ScreenContainer>
     );
