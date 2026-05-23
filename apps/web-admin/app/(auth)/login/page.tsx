@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
 import { GoogleButton } from "@/components/GoogleButton";
 
-export default function Login() {
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <Login />
+    </Suspense>
+  );
+}
+
+function Login() {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");

@@ -4,7 +4,17 @@ import { Check, Minus } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 
-const tiers = [
+interface Tier {
+  name: string;
+  price: number | null;
+  blurb: string;
+  cta: string;
+  features: string[];
+  missing: string[];
+  highlighted?: boolean;
+}
+
+const tiers: Tier[] = [
   {
     name: "Starter",
     price: 0,
