@@ -2,12 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
+import { getImpersonatedMerchant } from "./impersonation";
 
-/** Resolves the signed-in user's active merchant id (JWT claim, with membership fallback). */
+/** Resolves the active merchant id: a platform admin's "view as" selection,
+ *  else the signed-in user's JWT claim, with membership fallback. */
 export function useActiveMerchant() {
+  const impersonated = getImpersonatedMerchant();
   return useQuery({
-    queryKey: ["active-merchant"],
+    queryKey: ["active-merchant", impersonated],
     queryFn: async (): Promise<string | null> => {
+      if (impersonated) return impersonated;
+
       const supabase = createBrowserClient();
       const { data } = await supabase.auth.getSession();
       const session = data.session;

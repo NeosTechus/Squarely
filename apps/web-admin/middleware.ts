@@ -9,11 +9,11 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => {
+        get: (name: string) => req.cookies.get(name)?.value,
+        set: (name: string, value: string, options: Record<string, unknown>) => {
           res.cookies.set({ name, value, ...options });
         },
-        remove: (name, options) => {
+        remove: (name: string, options: Record<string, unknown>) => {
           res.cookies.set({ name, value: "", ...options });
         },
       },
@@ -39,8 +39,9 @@ export async function middleware(req: NextRequest) {
   }
 
   if (authPath && user) {
+    // Send to "/" so the root decides: platform admin -> /admin, owner -> /dashboard.
     const url = req.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

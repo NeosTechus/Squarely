@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@squarely/ui-web";
+import { APP_LOGIN_URL, APP_SIGNUP_URL } from "@/lib/appUrl";
 
 export function SiteNav() {
   return (
@@ -14,12 +15,12 @@ export function SiteNav() {
           <Link href="/download" className="hover:text-slate-900">Download</Link>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-medium text-slate-700 hover:text-slate-900">
+          <a href={APP_LOGIN_URL} className="text-sm font-medium text-slate-700 hover:text-slate-900">
             Log in
-          </Link>
-          <Link href="/signup">
+          </a>
+          <a href={APP_SIGNUP_URL}>
             <Button size="sm">Get started</Button>
-          </Link>
+          </a>
         </div>
       </div>
     </nav>

@@ -4,6 +4,7 @@ import { View, ActivityIndicator } from "react-native";
 import { useBootMode } from "@/store/boot";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { usePlatformAdmin } from "@/lib/usePlatformAdmin";
 
 export default function Index() {
   const { mode, hydrated } = useBootMode();
@@ -16,11 +17,13 @@ export default function Index() {
     },
   });
 
+  const { data: isPlatformAdmin, isLoading: checkingAdmin } = usePlatformAdmin();
+
   useEffect(() => {
     /* subscribe to auth changes — keep query cache in sync (future) */
   }, []);
 
-  if (!hydrated || isLoading) {
+  if (!hydrated || isLoading || (session && checkingAdmin)) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50">
         <ActivityIndicator />
@@ -29,6 +32,10 @@ export default function Index() {
   }
 
   if (!session) return <Redirect href="/(auth)/login" />;
+
+  // Super admins go straight to the platform console (no merchant boot picker).
+  if (isPlatformAdmin) return <Redirect href={"/(platform)" as never} />;
+
   if (!mode) return <Redirect href="/(boot)" />;
 
   switch (mode) {

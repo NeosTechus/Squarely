@@ -48,7 +48,8 @@ export default function Orders() {
             No orders yet. Charge a sale on the POS app and it will show here.
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-6 py-3">Order</th>
@@ -74,6 +75,7 @@ export default function Orders() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

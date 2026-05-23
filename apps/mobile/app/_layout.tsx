@@ -21,6 +21,7 @@ export default function RootLayout() {
         <Stack.Screen name="(kiosk)" options={{ gestureEnabled: false }} />
         <Stack.Screen name="(kds)" />
         <Stack.Screen name="(admin)" />
+        <Stack.Screen name="(platform)" />
       </Stack>
     </Providers>
   );

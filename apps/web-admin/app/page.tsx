@@ -16,5 +16,19 @@ export default async function Index() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  redirect(isAdmin ? "/admin" : "/dashboard");
+  if (isAdmin) redirect("/admin");
+
+  // Owners whose merchant has been suspended by an admin are blocked.
+  const activeMerchant = (user.app_metadata as Record<string, unknown> | undefined)
+    ?.active_merchant_id;
+  if (typeof activeMerchant === "string" && activeMerchant) {
+    const { data: m } = await (supabase as any)
+      .from("merchants")
+      .select("suspended")
+      .eq("id", activeMerchant)
+      .maybeSingle();
+    if (m?.suspended) redirect("/suspended");
+  }
+
+  redirect("/dashboard");
 }

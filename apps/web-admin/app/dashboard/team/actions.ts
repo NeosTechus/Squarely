@@ -1,23 +1,7 @@
 "use server";
 
 import { getServerSupabase, getServiceSupabase } from "@/lib/supabase";
-
-export type MerchantRole =
-  | "owner"
-  | "admin"
-  | "manager"
-  | "cashier"
-  | "kitchen"
-  | "viewer";
-
-export const MERCHANT_ROLES: MerchantRole[] = [
-  "owner",
-  "admin",
-  "manager",
-  "cashier",
-  "kitchen",
-  "viewer",
-];
+import { MERCHANT_ROLES, type MerchantRole } from "./roles";
 
 export type AddTeamMemberResult = { ok: true } | { ok: false; error: string };
 

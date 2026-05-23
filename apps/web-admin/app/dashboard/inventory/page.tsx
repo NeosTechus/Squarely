@@ -227,7 +227,8 @@ export default function Inventory() {
         ) : rows.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">No items yet.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-6 py-3 font-medium">Item</th>
@@ -309,6 +310,7 @@ export default function Inventory() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

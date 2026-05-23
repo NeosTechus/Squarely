@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
+import { GoogleButton } from "@/components/GoogleButton";
 
 export default function Login() {
   const router = useRouter();
@@ -30,7 +31,8 @@ export default function Login() {
       return;
     }
 
-    router.push(params.get("redirect") ?? "/dashboard");
+    // Route through "/" so platform admins land on /admin and owners on /dashboard.
+    router.push(params.get("redirect") ?? "/");
     router.refresh();
   }
 
@@ -40,7 +42,14 @@ export default function Login() {
         <h1 className="text-2xl font-bold tracking-tight">Log in to Squarely</h1>
         <p className="mt-2 text-sm text-slate-600">Use your merchant account.</p>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <div className="mt-6">
+          <GoogleButton label="Log in with Google" />
+        </div>
+        <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" /> or <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <form className="space-y-4" onSubmit={onSubmit}>
           <label className="block text-sm">
             <span className="text-slate-700">Email</span>
             <input

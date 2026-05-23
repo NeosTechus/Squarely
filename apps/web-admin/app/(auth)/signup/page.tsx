@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
 import { signUpMerchant } from "../actions";
+import { GoogleButton } from "@/components/GoogleButton";
 
 export default function Signup() {
   const router = useRouter();
@@ -51,7 +52,14 @@ export default function Signup() {
         <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
         <p className="mt-2 text-sm text-slate-600">Start your free Squarely store.</p>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <div className="mt-6">
+          <GoogleButton label="Sign up with Google" />
+        </div>
+        <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" /> or <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <form className="space-y-4" onSubmit={onSubmit}>
           <label className="block text-sm">
             <span className="text-slate-700">Business name</span>
             <input

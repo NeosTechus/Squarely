@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
-import { addTeamMember, MERCHANT_ROLES, type MerchantRole } from "./actions";
+import { addTeamMember } from "./actions";
+import { MERCHANT_ROLES, type MerchantRole } from "./roles";
 
 interface Member {
   id: string;
