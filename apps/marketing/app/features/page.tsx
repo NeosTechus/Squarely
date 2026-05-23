@@ -52,12 +52,9 @@ export default function Features() {
             backgroundSize: "48px 48px",
           }}
         />
-        <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-20 text-center">
+        <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-28 text-center">
           <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-brand-100 backdrop-blur">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-brand-400" />
-              One platform, every tool
-            </span>
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">One platform, every tool</p>
             <h1 className="mx-auto mt-7 max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-6xl">
               Everything you need to{" "}
               <span className="animate-gradient bg-gradient-to-r from-brand-300 via-brand-400 to-brand-200 bg-[length:200%_auto] bg-clip-text text-transparent">

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
+import Reveal from "@/components/Reveal";
 
 const fmt = (c: number) => "$" + (c / 100).toLocaleString();
 const one = <T,>(v: any): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
@@ -126,16 +127,22 @@ export default function RevenuePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-bold tracking-tight">Revenue &amp; health</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">Revenue &amp; health</Reveal>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="MRR" value={dash(fmt(view.mrr))} hint="active subscriptions" />
-        <Stat label="ARR" value={dash(fmt(view.arr))} hint="MRR × 12" />
-        <Stat label="Active subscriptions" value={dash(String(view.activeCount))} hint={`${view.churnCount} non-active`} />
-        <Stat label="New clients this month" value={dash(String(view.newThisMonth))} hint={`${view.totalClients} total · ${view.suspended} suspended`} />
+        {[
+          <Stat key="mrr" label="MRR" value={dash(fmt(view.mrr))} hint="active subscriptions" />,
+          <Stat key="arr" label="ARR" value={dash(fmt(view.arr))} hint="MRR × 12" />,
+          <Stat key="active" label="Active subscriptions" value={dash(String(view.activeCount))} hint={`${view.churnCount} non-active`} />,
+          <Stat key="new" label="New clients this month" value={dash(String(view.newThisMonth))} hint={`${view.totalClients} total · ${view.suspended} suspended`} />,
+        ].map((card, i) => (
+          <Reveal key={i} delay={i * 70}>
+            {card}
+          </Reveal>
+        ))}
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" delay={70} className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-4 text-sm font-semibold text-slate-700">MRR by plan</h2>
         {view.tiers.length === 0 ? (
           <p className="text-sm text-slate-500">{isLoading ? "Loading…" : "No active subscriptions."}</p>
@@ -160,9 +167,9 @@ export default function RevenuePage() {
             ))}
           </div>
         )}
-      </section>
+      </Reveal>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" delay={140} className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-4 text-sm font-semibold text-slate-700">At-risk clients</h2>
         {isLoading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -171,7 +178,7 @@ export default function RevenuePage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {view.atRisk.map((c, i) => (
-              <li key={i} className="flex items-center justify-between py-2 text-sm">
+              <li key={i} className="-mx-2 flex items-center justify-between rounded px-2 py-2 text-sm transition hover:bg-slate-50">
                 <span className="font-medium text-slate-700">{c.name}</span>
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                   {c.last
@@ -182,14 +189,14 @@ export default function RevenuePage() {
             ))}
           </ul>
         )}
-      </section>
+      </Reveal>
     </div>
   );
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
       <div className="text-sm text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{value}</div>
       {hint ? <div className="mt-1 text-xs text-slate-400">{hint}</div> : null}

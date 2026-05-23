@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
+import Reveal from "@/components/Reveal";
 
 interface AuditRow {
   action: string;
@@ -34,7 +35,7 @@ export default function AuditPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold tracking-tight">Audit log</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">Audit log</Reveal>
 
       {error ? (
         <p className="text-sm text-red-600">{(error as Error).message}</p>
@@ -43,7 +44,7 @@ export default function AuditPage() {
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400">No audit events yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <Reveal className="overflow-x-auto rounded-2xl border border-slate-200 bg-white transition hover:shadow-md">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
@@ -55,7 +56,7 @@ export default function AuditPage() {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={i} className="border-b border-slate-50 last:border-0">
+                <tr key={i} className="border-b border-slate-50 transition last:border-0 hover:bg-slate-50">
                   <td className="whitespace-nowrap px-4 py-3 text-slate-500">
                     {new Date(r.created_at).toLocaleString()}
                   </td>
@@ -66,7 +67,7 @@ export default function AuditPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Reveal>
       )}
     </div>
   );

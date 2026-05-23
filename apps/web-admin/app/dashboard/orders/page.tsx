@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface OrderRow {
   id: string;
@@ -36,9 +37,11 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">
+        Orders
+      </Reveal>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <Reveal className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
@@ -62,7 +65,7 @@ export default function Orders() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {orders.map((o) => (
-                <tr key={o.id}>
+                <tr key={o.id} className="transition hover:bg-slate-50">
                   <td className="px-6 py-3 font-medium">#{o.number}</td>
                   <td className="px-6 py-3 text-slate-600">{o.source}</td>
                   <td className="px-6 py-3 text-slate-600">{o.status}</td>
@@ -77,7 +80,7 @@ export default function Orders() {
           </table>
           </div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

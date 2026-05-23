@@ -7,7 +7,7 @@ export default function Terms() {
   return (
     <main className="min-h-screen">
       <SiteNav />
-      <article className="mx-auto max-w-3xl px-6 py-16">
+      <article className="mx-auto max-w-3xl px-6 pb-16 pt-28">
         <h1 className="text-4xl font-bold tracking-tight">Terms &amp; Conditions</h1>
         <p className="mt-2 text-sm text-slate-500">Last updated: {new Date().getFullYear()}</p>
 

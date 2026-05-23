@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { createBrowserClient } from "@squarely/db/browser";
+import Reveal from "@/components/Reveal";
 
 const fmt = (c: number) => `$${(c / 100).toLocaleString()}`;
 const one = <T,>(v: T | T[] | null | undefined): T | null =>
@@ -44,15 +45,21 @@ export default function AdminOverview() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold tracking-tight">Platform overview</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">Platform overview</Reveal>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Stat label="Total clients" value={isLoading ? "…" : String(totalClients)} />
-        <Stat label="Active subscriptions" value={isLoading ? "…" : String(activeSubs)} />
-        <Stat label="Estimated MRR" value={isLoading ? "…" : fmt(mrrCents)} />
+        {[
+          <Stat key="clients" label="Total clients" value={isLoading ? "…" : String(totalClients)} />,
+          <Stat key="subs" label="Active subscriptions" value={isLoading ? "…" : String(activeSubs)} />,
+          <Stat key="mrr" label="Estimated MRR" value={isLoading ? "…" : fmt(mrrCents)} />,
+        ].map((card, i) => (
+          <Reveal key={i} delay={i * 70}>
+            {card}
+          </Reveal>
+        ))}
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" delay={70} className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-3 text-sm font-semibold text-slate-700">Clients by plan</h2>
         {isLoading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -66,7 +73,7 @@ export default function AdminOverview() {
             ))}
           </div>
         )}
-      </section>
+      </Reveal>
 
       <Link
         href="/admin/clients"
@@ -80,7 +87,7 @@ export default function AdminOverview() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-4 transition hover:shadow-md">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>

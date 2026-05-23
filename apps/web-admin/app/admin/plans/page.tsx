@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { updatePlan } from "./actions";
+import Reveal from "@/components/Reveal";
 
 interface PlanRow {
   id: string;
@@ -35,10 +36,12 @@ export default function PlansPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <h1 className="text-2xl font-bold tracking-tight">Plans</h1>
-      <p className="text-sm text-slate-600">
-        Edit the subscription tiers offered to merchants. Prices are shown in dollars.
-      </p>
+      <Reveal>
+        <h1 className="text-2xl font-bold tracking-tight">Plans</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Edit the subscription tiers offered to merchants. Prices are shown in dollars.
+        </p>
+      </Reveal>
 
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
@@ -46,8 +49,10 @@ export default function PlansPage() {
         <p className="text-sm text-red-600">{(error as Error).message}</p>
       ) : (
         <div className="space-y-4">
-          {plans.map((p) => (
-            <PlanCard key={p.id} plan={p} />
+          {plans.map((p, i) => (
+            <Reveal key={p.id} delay={i * 70}>
+              <PlanCard plan={p} />
+            </Reveal>
           ))}
         </div>
       )}
@@ -91,7 +96,7 @@ function PlanCard({ plan }: { plan: PlanRow }) {
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
       <div className="mb-4 text-xs uppercase tracking-wide text-slate-400">{plan.tier}</div>
 
       <div className="grid gap-4 sm:grid-cols-2">

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface OrderRow {
   total_cents: number;
@@ -50,20 +51,28 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">
+        Overview
+      </Reveal>
 
       {error ? (
         <p className="text-sm text-red-600">{(error as Error).message}</p>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Today's revenue" value={isLoading ? "…" : fmt(revenue)} />
-        <Stat label="Orders" value={isLoading ? "…" : String(orderCount)} />
-        <Stat label="Avg ticket" value={isLoading ? "…" : fmt(avgTicket)} />
-        <Stat label="Open tickets" value={isLoading ? "…" : String(openTickets)} />
+        {[
+          { label: "Today's revenue", value: isLoading ? "…" : fmt(revenue) },
+          { label: "Orders", value: isLoading ? "…" : String(orderCount) },
+          { label: "Avg ticket", value: isLoading ? "…" : fmt(avgTicket) },
+          { label: "Open tickets", value: isLoading ? "…" : String(openTickets) },
+        ].map((s, i) => (
+          <Reveal key={s.label} delay={i * 70}>
+            <Stat label={s.label} value={s.value} />
+          </Reveal>
+        ))}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <Reveal className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md">
         <h2 className="text-lg font-semibold">Recent orders</h2>
         {isLoading ? (
           <p className="mt-2 text-sm text-slate-500">Loading…</p>
@@ -76,7 +85,7 @@ export default function Dashboard() {
             {orders.slice(0, 10).map((o) => (
               <li
                 key={o.number}
-                className="flex items-center justify-between py-2 text-sm"
+                className="-mx-2 flex items-center justify-between rounded-lg px-2 py-2 text-sm transition hover:bg-slate-50"
               >
                 <span className="font-medium">Order #{o.number}</span>
                 <span className="text-slate-500">{o.status}</span>
@@ -85,14 +94,14 @@ export default function Dashboard() {
             ))}
           </ul>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:shadow-md">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>

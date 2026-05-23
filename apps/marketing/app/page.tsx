@@ -12,12 +12,17 @@ import {
   ArrowRight,
   Check,
   Star,
+  ScanLine,
+  Archive,
+  Wrench,
+  Truck,
 } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { APP_SIGNUP_URL } from "@/lib/appUrl";
 import Reveal from "@/components/Reveal";
 import Marquee from "@/components/Marquee";
+import CountUp from "@/components/CountUp";
 
 export default function Home() {
   return (
@@ -38,11 +43,10 @@ export default function Home() {
             backgroundSize: "48px 48px",
           }}
         />
-        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-28 pt-20 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-brand-100 backdrop-blur">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-brand-400" />
-            The all-in-one commerce platform · iOS · Android · Web
-          </span>
+        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-28 pt-28 text-center">
+          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">
+            Point of Sale · Kiosk · Kitchen · Back office
+          </p>
           <h1 className="mx-auto mt-7 max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl">
             Run your entire business
             <br />
@@ -120,17 +124,28 @@ export default function Home() {
       </section>
 
       {/* ───────── TRUST STRIP ───────── */}
-      <section className="border-b border-slate-100 bg-white py-10">
-        <div className="mx-auto max-w-5xl px-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Built for cafés · restaurants · retail · food trucks · franchises
+      <section className="border-b border-slate-100 bg-white py-12">
+        <div className="mx-auto max-w-6xl px-6">
+          <p className="text-center text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+            Built for cafés, restaurants, retail &amp; multi-location brands
           </p>
-          <Marquee className="mt-6 text-lg font-bold text-slate-300">
-            <span className="mx-6">☕ Brew &amp; Co</span>
-            <span className="mx-6">🍔 Urban Eats</span>
-            <span className="mx-6">🥡 Taco Five</span>
-            <span className="mx-6">🍣 Sushi Express</span>
-            <span className="mx-6">🥐 Bluebird</span>
+          <Marquee className="mt-8">
+            {[
+              "Brew & Co.",
+              "URBAN EATS",
+              "Taco Five",
+              "Sushi Express",
+              "Bluebird Bakery",
+              "Fenton Gyro",
+              "Late Night Diner",
+            ].map((b) => (
+              <span
+                key={b}
+                className="mx-9 text-xl font-semibold tracking-tight text-slate-300 transition-colors hover:text-slate-500"
+              >
+                {b}
+              </span>
+            ))}
           </Marquee>
         </div>
       </section>
@@ -170,6 +185,7 @@ export default function Home() {
               body="A register designed for speed. Build the cart, apply modifiers, take card or cash, and print a receipt — without the clutter."
               points={["Card readers & cash drawers", "Tips, discounts, split payments", "Offline-resilient"]}
               align="left"
+              visual={<CheckoutMock />}
             />
           </Reveal>
           <Reveal>
@@ -179,18 +195,76 @@ export default function Home() {
               body="Turn any tablet into a self-order kiosk. Orders flow straight to the kitchen display, so your team just makes and serves."
               points={["Branded welcome screen", "Real-time kitchen tickets", "Pay-at-counter or card"]}
               align="right"
+              visual={<KdsMock />}
             />
           </Reveal>
         </div>
       </section>
 
+      {/* ───────── HARDWARE & SETUP ───────── */}
+      <section className="mx-auto max-w-7xl px-6 py-24">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Hardware, handled</div>
+          <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">
+            We supply the gear — and set it all up
+          </h2>
+          <p className="mt-4 text-lg text-slate-600">
+            Don&apos;t source devices from five vendors. Get matched, pre-configured hardware shipped
+            ready to run, with white-glove setup so you&apos;re live on day one.
+          </p>
+        </Reveal>
+
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: <Printer />, title: "Receipt printers", body: "Epson LAN/Bluetooth printers, pre-paired and ready." },
+            { icon: <CreditCard />, title: "Card readers", body: "EMV chip, tap & swipe readers for your gateway." },
+            { icon: <ScanLine />, title: "Barcode scanners", body: "Fast 1D/2D scanning for inventory and checkout." },
+            { icon: <Archive />, title: "Cash drawers", body: "Printer-triggered drawers with a clean cash flow." },
+          ].map((h, i) => (
+            <Reveal key={h.title} delay={i * 70}>
+              <div className="group h-full rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white transition group-hover:bg-brand-600">
+                  {h.icon}
+                </div>
+                <div className="text-lg font-semibold text-slate-900">{h.title}</div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{h.body}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* setup callout */}
+        <Reveal delay={120}>
+          <div className="mt-8 flex flex-col items-center justify-between gap-6 rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-8 md:flex-row">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white">
+                <Wrench />
+              </span>
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Done-for-you setup &amp; onboarding</div>
+                <p className="mt-1 max-w-xl text-sm text-slate-600">
+                  Our team configures your devices, loads your menu, connects your printer and reader,
+                  and trains your staff — so opening day just works.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 whitespace-nowrap rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+              <Truck size={16} /> Shipped ready-to-run
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
       {/* ───────── STATS ───────── */}
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <Reveal className="grid gap-8 rounded-3xl bg-slate-950 px-8 py-12 text-center md:grid-cols-4">
-          <Stat value="1 app" label="POS, Kiosk, KDS & Admin" />
-          <Stat value="< 5 min" label="To set up your store" />
-          <Stat value="Multi-tenant" label="Built for many locations" />
-          <Stat value="iOS · Android · Web" label="Run anywhere" />
+        <Reveal className="relative overflow-hidden rounded-3xl bg-slate-950 px-8 py-14">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-brand-600/20 blur-3xl" />
+          <div className="relative grid gap-y-10 text-center md:grid-cols-4 md:divide-x md:divide-white/10">
+            <Stat value={<><CountUp to={4} />-in-1</>} label="POS · Kiosk · KDS · Admin" />
+            <Stat value={<CountUp to={5} prefix="< " suffix=" min" />} label="To set up your store" />
+            <Stat value="Multi-location" label="One account, every store" />
+            <Stat value={<CountUp to={3} suffix=" platforms" />} label="iOS · Android · Web" />
+          </div>
         </Reveal>
       </section>
 
@@ -216,15 +290,19 @@ export default function Home() {
       <section className="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-brand-800 py-20">
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <Reveal className="relative mx-auto max-w-3xl px-6 text-center">
-          <h2 className="text-4xl font-bold tracking-tight text-white">Ready to run smarter?</h2>
+          <h2 className="animate-gradient bg-gradient-to-r from-white via-brand-100 to-white bg-[length:200%_auto] bg-clip-text text-4xl font-bold tracking-tight text-transparent">
+            Ready to run smarter?
+          </h2>
           <p className="mt-4 text-lg text-brand-50">
             Start free in minutes. Add a kiosk, a kitchen screen, and more locations as you grow.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href={APP_SIGNUP_URL}>
-              <Button size="lg" className="bg-white text-brand-700 hover:bg-brand-50">
+            <a href={APP_SIGNUP_URL} className="group relative inline-flex overflow-hidden rounded-md">
+              <Button size="lg" className="relative bg-white text-brand-700 hover:bg-brand-50">
                 Start free
               </Button>
+              {/* shimmer sweep on hover */}
+              <span className="animate-shimmer pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_35%,rgba(255,255,255,0.7)_50%,transparent_65%)] bg-[length:200%_100%] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </a>
             <Link href="/download">
               <Button size="lg" variant="outline" className="border-white/40 bg-transparent text-white hover:bg-white/10">
@@ -242,12 +320,16 @@ export default function Home() {
 
 function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
-    <div className="group rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">
-      <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white">
-        {icon}
+    <div className="group relative rounded-2xl border border-slate-200 bg-white p-6 transition duration-300 hover:-translate-y-1 hover:border-transparent hover:shadow-lg">
+      {/* gradient accent ring revealed on hover */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-400 via-brand-500 to-brand-300 opacity-0 transition-opacity duration-300 [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask-composite:exclude] [padding:1px] group-hover:opacity-100" />
+      <div className="relative">
+        <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition group-hover:bg-brand-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-brand-600/30">
+          {icon}
+        </div>
+        <div className="text-lg font-semibold text-slate-900">{title}</div>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{body}</p>
       </div>
-      <div className="text-lg font-semibold text-slate-900">{title}</div>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">{body}</p>
     </div>
   );
 }
@@ -258,23 +340,25 @@ function Highlight({
   body,
   points,
   align,
+  visual,
 }: {
   eyebrow: string;
   title: string;
   body: string;
   points: string[];
   align: "left" | "right";
+  visual: React.ReactNode;
 }) {
   return (
-    <div className="grid items-center gap-10 md:grid-cols-2">
+    <div className="grid items-center gap-12 md:grid-cols-2">
       <div className={align === "right" ? "md:order-2" : ""}>
-        <div className="text-sm font-semibold uppercase tracking-widest text-brand-600">{eyebrow}</div>
-        <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">{title}</h3>
-        <p className="mt-4 text-slate-600">{body}</p>
-        <ul className="mt-6 space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">{eyebrow}</div>
+        <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">{title}</h3>
+        <p className="mt-4 text-lg leading-relaxed text-slate-600">{body}</p>
+        <ul className="mt-7 space-y-3.5">
           {points.map((p) => (
             <li key={p} className="flex items-center gap-3 text-slate-700">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                 <Check size={13} />
               </span>
               {p}
@@ -282,31 +366,117 @@ function Highlight({
           ))}
         </ul>
       </div>
-      <div className={align === "right" ? "md:order-1" : ""}>
-        <div className="aspect-[4/3] rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-100 p-4 shadow-sm">
-          <div className="h-full w-full rounded-xl bg-white p-4 shadow-inner">
-            <div className="mb-3 h-3 w-20 rounded bg-slate-200" />
-            <div className="grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="rounded-lg border border-slate-100 p-3">
-                  <div className="mb-2 h-8 rounded bg-brand-50" />
-                  <div className="h-2 w-12 rounded bg-slate-200" />
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 h-9 rounded-lg bg-brand-600" />
+      <div className={align === "right" ? "md:order-1" : ""}>{visual}</div>
+    </div>
+  );
+}
+
+/** A polished device frame wrapper for the highlight mockups. */
+function Frame({
+  title,
+  children,
+  float = false,
+  tilt = "left",
+}: {
+  title: string;
+  children: React.ReactNode;
+  /** Apply a gentle continuous floating motion. */
+  float?: boolean;
+  /** Direction the frame tilts toward on hover. */
+  tilt?: "left" | "right";
+}) {
+  return (
+    <div className={float ? "animate-floaty" : undefined}>
+      <div
+        className={`group rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-100 to-white p-2.5 shadow-xl shadow-slate-900/[0.06] transition-transform duration-500 ease-out will-change-transform hover:-translate-y-1.5 hover:shadow-2xl hover:shadow-brand-900/10 ${
+          tilt === "right"
+            ? "hover:[transform:perspective(1100px)_rotateY(-4deg)_rotateX(2deg)_translateY(-6px)]"
+            : "hover:[transform:perspective(1100px)_rotateY(4deg)_rotateX(2deg)_translateY(-6px)]"
+        }`}
+      >
+        <div className="overflow-hidden rounded-xl border border-slate-200/70 bg-white">
+          <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2">
+            <span className="h-2 w-2 rounded-full bg-red-300" />
+            <span className="h-2 w-2 rounded-full bg-amber-300" />
+            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+            <span className="ml-2 text-[11px] text-slate-400">{title}</span>
           </div>
+          {children}
         </div>
       </div>
     </div>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function CheckoutMock() {
   return (
-    <div>
-      <div className="text-3xl font-bold text-white">{value}</div>
-      <div className="mt-1 text-sm text-slate-400">{label}</div>
+    <Frame title="Squarely · Checkout" float tilt="left">
+      <div className="flex flex-col items-center px-6 py-8">
+        <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Amount due</div>
+        <div className="mt-1 text-5xl font-bold tracking-tight text-slate-900">$8.70</div>
+
+        <div className="mt-6 flex w-full max-w-[240px] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="flex h-10 w-14 items-center justify-center rounded-md bg-gradient-to-br from-slate-800 to-slate-900">
+            <div className="h-3.5 w-6 rounded-sm bg-amber-300/90" />
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-slate-700">Tap, insert or swipe</div>
+            <div className="text-[10px] text-slate-400">Reader connected</div>
+          </div>
+          <span className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <span className="rounded-full bg-brand-600 px-3 py-1 text-[11px] font-medium text-white">Card</span>
+          <span className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-600">Cash</span>
+          <span className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-600">Split</span>
+        </div>
+
+        <div className="mt-6 w-full max-w-[240px] rounded-xl bg-emerald-50 px-4 py-2.5 text-center text-[11px] font-semibold text-emerald-700">
+          ✓ Approved · Receipt sent
+        </div>
+      </div>
+    </Frame>
+  );
+}
+
+function KdsMock() {
+  const tickets = [
+    ["#128", "Kiosk", "received", "border-amber-200 bg-amber-50", ["1× Latte", "1× Bagel"]],
+    ["#129", "POS", "preparing", "border-sky-200 bg-sky-50", ["2× Espresso"]],
+    ["#130", "Kiosk", "ready", "border-emerald-200 bg-emerald-50", ["1× Avocado Toast"]],
+  ];
+  return (
+    <Frame title="Squarely · Kitchen Display" tilt="right">
+      <div className="grid grid-cols-3 gap-2.5 p-4">
+        {tickets.map(([num, src, status, cls, lines]) => (
+          <div key={num as string} className={`rounded-lg border p-2.5 ${cls}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-800">{num}</span>
+              <span className="text-[9px] uppercase text-slate-400">{src}</span>
+            </div>
+            <div className="mt-2 space-y-1">
+              {(lines as string[]).map((l) => (
+                <div key={l} className="text-[10px] text-slate-600">{l}</div>
+              ))}
+            </div>
+            <div className="mt-2.5 rounded bg-slate-900 py-1 text-center text-[9px] font-semibold capitalize text-white">
+              {status}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Frame>
+  );
+}
+
+function Stat({ value, label }: { value: React.ReactNode; label: string }) {
+  return (
+    <div className="px-4">
+      <div className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-4xl font-bold tracking-tight text-transparent">
+        {value}
+      </div>
+      <div className="mt-2 text-sm text-slate-400">{label}</div>
     </div>
   );
 }

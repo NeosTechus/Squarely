@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface Item {
   id: string;
@@ -129,8 +130,11 @@ export default function Items() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Items</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">
+        Items
+      </Reveal>
 
+      <Reveal>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -165,10 +169,11 @@ export default function Items() {
           {addItem.isPending ? "Adding…" : "Add item"}
         </button>
       </form>
+      </Reveal>
       {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
       {rowError ? <p className="text-sm text-red-600">{rowError}</p> : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
+      <Reveal className="rounded-2xl border border-slate-200 bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
@@ -180,7 +185,7 @@ export default function Items() {
             {items.map((it) => {
               const vis = visibilityOf(it);
               return (
-                <li key={it.id} className="flex items-center gap-4 px-6 py-3">
+                <li key={it.id} className="flex items-center gap-4 px-6 py-3 transition hover:bg-slate-50">
                   <label className="relative shrink-0 cursor-pointer">
                     {it.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -246,7 +251,7 @@ export default function Items() {
             })}
           </ul>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

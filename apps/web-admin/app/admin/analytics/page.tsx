@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
+import Reveal from "@/components/Reveal";
 
 type Period = "today" | "week" | "month" | "year" | "custom";
 const PERIODS: { key: Period; label: string }[] = [
@@ -145,7 +146,7 @@ export default function AnalyticsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+        <Reveal as="h1" className="text-2xl font-bold tracking-tight">Analytics</Reveal>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
             {PERIODS.map((p) => (
@@ -180,14 +181,20 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Stat label="Client sales (GMV)" value={isLoading ? "…" : fmt(view.gmv)} delta={view.gmvDelta} />
-        <Stat label="Orders" value={isLoading ? "…" : String(view.count)} delta={view.countDelta} />
-        <Stat label="Avg ticket" value={isLoading ? "…" : fmt(view.avg)} />
-        <Stat label="Platform MRR" value={fmt(mrrCents)} hint="active subscriptions" />
+        {[
+          <Stat key="gmv" label="Client sales (GMV)" value={isLoading ? "…" : fmt(view.gmv)} delta={view.gmvDelta} />,
+          <Stat key="orders" label="Orders" value={isLoading ? "…" : String(view.count)} delta={view.countDelta} />,
+          <Stat key="avg" label="Avg ticket" value={isLoading ? "…" : fmt(view.avg)} />,
+          <Stat key="mrr" label="Platform MRR" value={fmt(mrrCents)} hint="active subscriptions" />,
+        ].map((card, i) => (
+          <Reveal key={i} delay={i * 70}>
+            {card}
+          </Reveal>
+        ))}
       </div>
 
       {/* improvement insights */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-2 text-sm font-semibold text-slate-700">Insights</h2>
         <ul className="space-y-1 text-sm text-slate-600">
           <li>
@@ -205,9 +212,9 @@ export default function AnalyticsPage() {
           ) : null}
           <li>🧾 Avg ticket this {label}: <strong>{fmt(view.avg)}</strong>.</li>
         </ul>
-      </section>
+      </Reveal>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" delay={70} className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-4 text-sm font-semibold text-slate-700">Sales over {label}</h2>
         <div className="flex h-44 items-end gap-1 overflow-x-auto">
           {view.buckets.map((b, i) => (
@@ -221,30 +228,30 @@ export default function AnalyticsPage() {
             </div>
           ))}
         </div>
-      </section>
+      </Reveal>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal as="section" delay={140} className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:shadow-md">
         <h2 className="mb-3 text-sm font-semibold text-slate-700">Top clients ({label})</h2>
         {view.top.length === 0 ? (
           <p className="text-sm text-slate-500">No sales in this period.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {view.top.map((c) => (
-              <li key={c.name} className="flex justify-between py-2 text-sm">
+              <li key={c.name} className="-mx-2 flex justify-between rounded px-2 py-2 text-sm transition hover:bg-slate-50">
                 <span className="font-medium">{c.name}</span>
                 <span className="font-semibold">{fmt(c.cents)}</span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Reveal>
     </div>
   );
 }
 
 function Stat({ label, value, hint, delta }: { label: string; value: string; hint?: string; delta?: number }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="h-full rounded-2xl border border-slate-200 bg-white p-4 transition hover:shadow-md">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
       {delta !== undefined ? (

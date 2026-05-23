@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface Customer {
   id: string;
@@ -79,8 +80,11 @@ export default function Customers() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
+      <Reveal as="h1" className="text-2xl font-bold tracking-tight">
+        Customers
+      </Reveal>
 
+      <Reveal>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -140,6 +144,7 @@ export default function Customers() {
           </button>
         </div>
       </form>
+      </Reveal>
       {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
 
       <label className="block text-sm">
@@ -152,7 +157,7 @@ export default function Customers() {
         />
       </label>
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
+      <Reveal className="rounded-2xl border border-slate-200 bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
@@ -166,7 +171,7 @@ export default function Customers() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {filtered.map((c) => (
-              <li key={c.id} className="px-6 py-3">
+              <li key={c.id} className="px-6 py-3 transition hover:bg-slate-50">
                 <p className="font-medium">
                   {c.display_name ?? "Unnamed customer"}
                 </p>
@@ -180,7 +185,7 @@ export default function Customers() {
             ))}
           </ul>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

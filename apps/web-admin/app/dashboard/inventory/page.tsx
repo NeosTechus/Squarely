@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface Location {
   id: string;
@@ -195,7 +196,7 @@ export default function Inventory() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
+      <Reveal className="flex items-end justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
         {locations.length > 0 ? (
           <label className="text-sm">
@@ -213,11 +214,11 @@ export default function Inventory() {
             </select>
           </label>
         ) : null}
-      </div>
+      </Reveal>
 
       {rowError ? <p className="text-sm text-red-600">{rowError}</p> : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white">
+      <Reveal className="rounded-2xl border border-slate-200 bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
@@ -245,7 +246,7 @@ export default function Inventory() {
                   row.quantity <= row.reorder_threshold;
                 const dirty = Boolean(edits[row.item.id]);
                 return (
-                  <tr key={row.item.id}>
+                  <tr key={row.item.id} className="transition hover:bg-slate-50">
                     <td className="px-6 py-3">
                       <span
                         className={`font-medium ${low ? "text-amber-600" : ""}`}
@@ -312,7 +313,7 @@ export default function Inventory() {
           </table>
           </div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

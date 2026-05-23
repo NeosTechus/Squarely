@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import Reveal from "@/components/Reveal";
 
 interface OrderItemRow {
   name_snapshot: string;
@@ -102,21 +103,31 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-      <p className="text-sm text-slate-500">Sales analytics for the last 7 days.</p>
+      <Reveal>
+        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+        <p className="text-sm text-slate-500">
+          Sales analytics for the last 7 days.
+        </p>
+      </Reveal>
 
       {error ? (
         <p className="text-sm text-red-600">{(error as Error).message}</p>
       ) : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <Stat label="Revenue (7 days)" value={isLoading ? "…" : fmt(revenue)} />
-        <Stat label="Orders" value={isLoading ? "…" : String(orderCount)} />
-        <Stat label="Avg ticket" value={isLoading ? "…" : fmt(avgTicket)} />
+        {[
+          { label: "Revenue (7 days)", value: isLoading ? "…" : fmt(revenue) },
+          { label: "Orders", value: isLoading ? "…" : String(orderCount) },
+          { label: "Avg ticket", value: isLoading ? "…" : fmt(avgTicket) },
+        ].map((s, i) => (
+          <Reveal key={s.label} delay={i * 70}>
+            <Stat label={s.label} value={s.value} />
+          </Reveal>
+        ))}
       </div>
 
       {/* Revenue by day */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
+      <Reveal className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md">
         <h2 className="text-lg font-semibold">Revenue by day</h2>
         {isLoading ? (
           <p className="mt-2 text-sm text-slate-500">Loading…</p>
@@ -140,11 +151,11 @@ export default function Reports() {
             ))}
           </div>
         )}
-      </div>
+      </Reveal>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Sales by source */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <Reveal className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md">
           <h2 className="text-lg font-semibold">Sales by source</h2>
           {isLoading ? (
             <p className="mt-2 text-sm text-slate-500">Loading…</p>
@@ -162,10 +173,10 @@ export default function Reports() {
               ))}
             </ul>
           )}
-        </div>
+        </Reveal>
 
         {/* Top items */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
+        <Reveal delay={70} className="rounded-2xl border border-slate-200 bg-white p-6 transition hover:shadow-md">
           <h2 className="text-lg font-semibold">Top items</h2>
           {isLoading ? (
             <p className="mt-2 text-sm text-slate-500">Loading…</p>
@@ -187,7 +198,7 @@ export default function Reports() {
               ))}
             </ul>
           )}
-        </div>
+        </Reveal>
       </div>
     </div>
   );
@@ -195,7 +206,7 @@ export default function Reports() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:shadow-md">
       <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>
