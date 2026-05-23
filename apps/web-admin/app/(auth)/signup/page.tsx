@@ -7,6 +7,7 @@ import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
 import { signUpMerchant } from "../actions";
 import { GoogleButton } from "@/components/GoogleButton";
+import { MARKETING_URL } from "@/lib/marketingUrl";
 
 export default function Signup() {
   const router = useRouter();
@@ -98,6 +99,13 @@ export default function Signup() {
             {loading ? "Creating…" : "Create store"}
           </Button>
         </form>
+
+        <p className="mt-3 text-center text-xs text-slate-500">
+          By creating an account you agree to our{" "}
+          <a href={`${MARKETING_URL}/terms`} className="underline hover:text-slate-700">Terms</a>{" "}
+          and{" "}
+          <a href={`${MARKETING_URL}/privacy`} className="underline hover:text-slate-700">Privacy Policy</a>.
+        </p>
 
         <p className="mt-4 text-center text-sm text-slate-600">
           Already have an account?{" "}

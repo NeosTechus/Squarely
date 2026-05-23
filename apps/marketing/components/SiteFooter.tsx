@@ -24,8 +24,12 @@ export function SiteFooter() {
           ["Privacy", "/privacy"],
         ]} />
       </div>
-      <div className="border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} Squarely. All rights reserved.
+      <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500 sm:flex-row">
+        <span>© {new Date().getFullYear()} Squarely — a NeosTechus property. All rights reserved.</span>
+        <span className="flex gap-4">
+          <Link href="/terms" className="hover:text-slate-900">Terms</Link>
+          <Link href="/privacy" className="hover:text-slate-900">Privacy</Link>
+        </span>
       </div>
     </footer>
   );
