@@ -25,7 +25,9 @@ export default function Home() {
       <SiteNav />
 
       {/* ───────── HERO ───────── */}
-      <section className="relative overflow-hidden bg-slate-950">
+      <section className="grain relative overflow-hidden bg-slate-950">
+        {/* radial spotlight */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(51,163,255,0.18),transparent_70%)]" />
         <div className="animate-blob pointer-events-none absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-brand-600/30 blur-3xl" />
         <div className="animate-blob pointer-events-none absolute -right-40 top-20 h-[34rem] w-[34rem] rounded-full bg-brand-500/20 blur-3xl" style={{ animationDelay: "-4s" }} />
         <div
@@ -36,7 +38,7 @@ export default function Home() {
             backgroundSize: "48px 48px",
           }}
         />
-        <div className="relative mx-auto max-w-7xl px-6 pb-28 pt-20 text-center">
+        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-28 pt-20 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-medium text-brand-100 backdrop-blur">
             <span className="flex h-1.5 w-1.5 rounded-full bg-brand-400" />
             The all-in-one commerce platform · iOS · Android · Web

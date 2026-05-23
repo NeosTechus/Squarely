@@ -23,9 +23,41 @@
     --ring: 211 89% 54%;
     --radius: 0.75rem;
   }
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
+  /* Display typeface + tightened tracking for headings — a crafted type system. */
+  h1, h2, h3, h4 {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    letter-spacing: -0.02em;
+    font-feature-settings: "ss01", "cv01";
+  }
+  ::selection {
+    background: hsl(211 89% 54% / 0.18);
+  }
+}
+
+/* Premium easing tokens (expo-out / soft-spring feel used by high-craft sites). */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Subtle film-grain texture overlay (use .grain on a relatively-positioned section). */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* ── Animation foundation ───────────────────────────────────────────── */
@@ -97,10 +129,11 @@
 /* Scroll-reveal base */
 .reveal {
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(22px);
   transition:
-    opacity 0.6s ease,
-    transform 0.6s ease;
+    opacity 0.7s var(--ease-out-expo),
+    transform 0.7s var(--ease-out-expo);
+  will-change: opacity, transform;
 }
 .reveal.is-visible {
   opacity: 1;
