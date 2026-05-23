@@ -7,6 +7,7 @@ import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
 import { signUpMerchant } from "../actions";
 import { GoogleButton } from "@/components/GoogleButton";
+import { AuthField } from "@/components/AuthField";
 import { MARKETING_URL } from "@/lib/marketingUrl";
 
 export default function Signup() {
@@ -48,72 +49,40 @@ export default function Signup() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
-        <p className="mt-2 text-sm text-slate-600">Start your free Squarely store.</p>
+    <div className="w-full max-w-md rounded-3xl bg-white px-8 py-10 shadow-2xl sm:px-10">
+      <h1 className="text-center text-4xl font-bold tracking-tight text-slate-900">Sign up</h1>
+      <p className="mx-auto mt-3 max-w-xs text-center text-slate-500">
+        Start your free Squarely store in minutes.
+      </p>
 
-        <div className="mt-6">
-          <GoogleButton label="Sign up with Google" />
-        </div>
-        <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
-          <div className="h-px flex-1 bg-slate-200" /> or <div className="h-px flex-1 bg-slate-200" />
-        </div>
-
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <label className="block text-sm">
-            <span className="text-slate-700">Business name</span>
-            <input
-              type="text"
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-slate-700">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-slate-700">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-            />
-          </label>
-
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating…" : "Create store"}
-          </Button>
-        </form>
-
-        <p className="mt-3 text-center text-xs text-slate-500">
-          By creating an account you agree to our{" "}
-          <a href={`${MARKETING_URL}/terms`} className="underline hover:text-slate-700">Terms</a>{" "}
-          and{" "}
-          <a href={`${MARKETING_URL}/privacy`} className="underline hover:text-slate-700">Privacy Policy</a>.
-        </p>
-
-        <p className="mt-4 text-center text-sm text-slate-600">
-          Already have an account?{" "}
-          <Link href="/login" className="text-brand-700 underline">
-            Log in
-          </Link>
-        </p>
+      <div className="mt-8">
+        <GoogleButton label="Sign up with Google" />
       </div>
-    </main>
+
+      <form className="mt-6 space-y-5" onSubmit={onSubmit}>
+        <AuthField label="Business name" value={businessName} onChange={setBusinessName} required />
+        <AuthField label="Email" type="email" value={email} onChange={setEmail} required autoComplete="email" />
+        <AuthField label="Password" type="password" value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
+
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+          {loading ? "Creating…" : "Create store"}
+        </Button>
+      </form>
+
+      <p className="mt-4 text-center text-xs text-slate-500">
+        By creating an account you agree to our{" "}
+        <a href={`${MARKETING_URL}/terms`} className="underline hover:text-slate-700">Terms</a>{" "}
+        and{" "}
+        <a href={`${MARKETING_URL}/privacy`} className="underline hover:text-slate-700">Privacy Policy</a>.
+      </p>
+      <p className="mt-2 text-center text-sm text-slate-600">
+        Already have an account?{" "}
+        <Link href="/login" className="font-medium text-brand-700 hover:underline">
+          Log in
+        </Link>
+      </p>
+    </div>
   );
 }

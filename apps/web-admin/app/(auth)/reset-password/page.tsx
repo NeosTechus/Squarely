@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@squarely/ui-web";
 import { createBrowserClient as getBrowserSupabase } from "@squarely/db/browser";
+import { AuthField } from "@/components/AuthField";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -55,48 +56,26 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight">Set a new password</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Choose a new password for your account.
-        </p>
+    <div className="w-full max-w-md rounded-3xl bg-white px-8 py-10 shadow-2xl sm:px-10">
+      <h1 className="text-center text-4xl font-bold tracking-tight text-slate-900">New password</h1>
+      <p className="mx-auto mt-3 max-w-xs text-center text-slate-500">
+        Choose a new password for your account.
+      </p>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <label className="block text-sm">
-            <span className="text-slate-700">New password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-slate-700">Confirm password</span>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-            />
-          </label>
+      <form className="mt-8 space-y-5" onSubmit={onSubmit}>
+        <AuthField label="New password" type="password" value={password} onChange={setPassword} required autoComplete="new-password" />
+        <AuthField label="Confirm password" type="password" value={confirm} onChange={setConfirm} required autoComplete="new-password" />
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <Button type="submit" className="w-full" disabled={loading || !ready}>
-            {loading ? "Updating…" : "Update password"}
-          </Button>
-        </form>
+        <Button type="submit" size="lg" className="w-full" disabled={loading || !ready}>
+          {loading ? "Updating…" : "Update password"}
+        </Button>
+      </form>
 
-        <p className="mt-4 text-center text-sm text-slate-600">
-          <Link href="/login" className="text-brand-700 underline">
-            Back to log in
-          </Link>
-        </p>
-      </div>
-    </main>
+      <p className="mt-4 text-center text-sm text-slate-600">
+        <Link href="/login" className="font-medium text-brand-700 hover:underline">Back to log in</Link>
+      </p>
+    </div>
   );
 }
