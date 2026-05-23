@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Button } from "@squarely/ui-web";
 import { APP_LOGIN_URL, APP_SIGNUP_URL } from "@/lib/appUrl";
 
@@ -9,6 +12,7 @@ const links = [
 ];
 
 export function SiteNav() {
+  const pathname = usePathname();
   return (
     <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4">
       <nav className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/30 bg-white/40 px-3 py-2.5 shadow-lg shadow-slate-900/[0.06] ring-1 ring-slate-900/[0.04] backdrop-blur-2xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/40">
@@ -20,24 +24,32 @@ export function SiteNav() {
           Squarely
         </Link>
 
-        {/* center links (pill hover) */}
+        {/* center links (active = white pill) */}
         <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {links.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  active
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* actions */}
         <div className="flex items-center gap-1.5">
           <a
             href={APP_LOGIN_URL}
-            className="rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+            className="rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/60 hover:text-slate-900"
           >
             Log in
           </a>
