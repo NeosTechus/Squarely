@@ -13,10 +13,10 @@ export function SiteFooter() {
             href="https://neostechus.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex flex-col gap-0.5 text-xs text-slate-500 hover:text-slate-800"
+            className="mt-4 inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
           >
-            <span className="font-semibold text-slate-700">A NeosTechus product</span>
-            <span>AI-native engineering &amp; IT services for ambitious teams</span>
+            <NeosTechMark />
+            <span>Powered by <span className="font-semibold">NeosTech LLC</span></span>
           </a>
         </div>
         <Column title="Product" links={[
@@ -34,12 +34,11 @@ export function SiteFooter() {
         ]} />
       </div>
       <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500 sm:flex-row">
-        <span>
-          © {new Date().getFullYear()} Squarely — a{" "}
-          <a href="https://neostechus.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-900">
-            NeosTechus
-          </a>{" "}
-          property. All rights reserved.
+        <span className="inline-flex items-center gap-1.5">
+          © {new Date().getFullYear()} Squarely. All rights reserved. ·
+          <a href="https://neostechus.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-slate-900">
+            <NeosTechMark size={14} /> Powered by NeosTech LLC
+          </a>
         </span>
         <span className="flex gap-4">
           <Link href="/terms" className="hover:text-slate-900">Terms</Link>
@@ -47,6 +46,19 @@ export function SiteFooter() {
         </span>
       </div>
     </footer>
+  );
+}
+
+/** NeosTech logo mark (placeholder until the official asset is supplied). */
+export function NeosTechMark({ size = 18 }: { size?: number }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded bg-[#1c4b8e] font-bold text-white"
+      style={{ width: size, height: size, fontSize: size * 0.6 }}
+      aria-hidden
+    >
+      N
+    </span>
   );
 }
 

@@ -14,7 +14,7 @@ export default function Terms() {
         <div className="prose prose-slate mt-8 space-y-6 text-slate-700">
           <Section title="1. Agreement">
             These Terms &amp; Conditions govern your use of Squarely, a software product owned and
-            operated by <strong>NeosTechus LLC</strong> (&ldquo;NeosTech&rdquo;, &ldquo;we&rdquo;,
+            operated by <strong>NeosTech LLC</strong> (&ldquo;NeosTech&rdquo;, &ldquo;we&rdquo;,
             &ldquo;us&rdquo;). By creating an account or using the service you agree to these terms.
           </Section>
           <Section title="2. The service">

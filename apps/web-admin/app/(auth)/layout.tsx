@@ -40,9 +40,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           href="https://neostechus.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-white/60 hover:text-white/90"
+          className="inline-flex items-center gap-2 text-xs text-white/60 hover:text-white/90"
         >
-          Powered by NeosTechus · AI-native engineering &amp; IT services
+          <span className="flex h-4 w-4 items-center justify-center rounded bg-white/20 text-[10px] font-bold">N</span>
+          Powered by NeosTech LLC
         </a>
       </footer>
     </div>

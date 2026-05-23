@@ -13,7 +13,7 @@ export default function Privacy() {
 
         <div className="mt-8 space-y-6 text-slate-700">
           <Section title="1. Who we are">
-            Squarely is owned and operated by <strong>NeosTechus LLC</strong>
+            Squarely is owned and operated by <strong>NeosTech LLC</strong>
             (&ldquo;NeosTech&rdquo;). This policy explains how we collect, use, and protect personal
             information.
           </Section>
