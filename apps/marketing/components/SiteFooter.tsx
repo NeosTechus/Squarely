@@ -33,17 +33,8 @@ export function SiteFooter() {
           ["Privacy", "/privacy"],
         ]} />
       </div>
-      <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500 sm:flex-row">
-        <span className="inline-flex items-center gap-1.5">
-          © {new Date().getFullYear()} Squarely. All rights reserved. ·
-          <a href="https://neostechus.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-slate-900">
-            <NeosTechMark size={14} /> Powered by NeosTech LLC
-          </a>
-        </span>
-        <span className="flex gap-4">
-          <Link href="/terms" className="hover:text-slate-900">Terms</Link>
-          <Link href="/privacy" className="hover:text-slate-900">Privacy</Link>
-        </span>
+      <div className="border-t border-slate-200 px-6 py-5 text-center text-xs text-slate-500">
+        © {new Date().getFullYear()} Squarely. All rights reserved.
       </div>
     </footer>
   );
