@@ -33,6 +33,18 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </header>
 
       {children}
+
+      {/* Powered by NeosTechus */}
+      <footer className="absolute inset-x-0 bottom-0 z-10 px-6 py-5 text-center">
+        <a
+          href="https://neostechus.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-white/60 hover:text-white/90"
+        >
+          Powered by NeosTechus · AI-native engineering &amp; IT services
+        </a>
+      </footer>
     </div>
   );
 }
