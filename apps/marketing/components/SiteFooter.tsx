@@ -49,16 +49,17 @@ export function SiteFooter() {
   );
 }
 
-/** NeosTech logo mark (placeholder until the official asset is supplied). */
+/** NeosTech LLC logo mark. */
 export function NeosTechMark({ size = 18 }: { size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
   return (
-    <span
-      className="inline-flex items-center justify-center rounded bg-[#1c4b8e] font-bold text-white"
-      style={{ width: size, height: size, fontSize: size * 0.6 }}
-      aria-hidden
-    >
-      N
-    </span>
+    <img
+      src="/neostech-logo.png"
+      alt="NeosTech LLC"
+      width={size}
+      height={size}
+      className="rounded-[3px] object-contain"
+    />
   );
 }
 

@@ -42,7 +42,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 text-xs text-white/60 hover:text-white/90"
         >
-          <span className="flex h-4 w-4 items-center justify-center rounded bg-white/20 text-[10px] font-bold">N</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/neostech-logo.png" alt="NeosTech LLC" width={16} height={16} className="rounded-[3px]" />
           Powered by NeosTech LLC
         </a>
       </footer>
