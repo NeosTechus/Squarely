@@ -9,6 +9,15 @@ export function SiteFooter() {
           <p className="mt-2 text-sm text-slate-600">
             Run your business from one screen.
           </p>
+          <a
+            href="https://neostechus.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex flex-col gap-0.5 text-xs text-slate-500 hover:text-slate-800"
+          >
+            <span className="font-semibold text-slate-700">A NeosTechus product</span>
+            <span>AI-native engineering &amp; IT services for ambitious teams</span>
+          </a>
         </div>
         <Column title="Product" links={[
           ["Features", "/features"],
@@ -25,7 +34,13 @@ export function SiteFooter() {
         ]} />
       </div>
       <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-200 px-6 py-4 text-center text-xs text-slate-500 sm:flex-row">
-        <span>© {new Date().getFullYear()} Squarely — a NeosTechus property. All rights reserved.</span>
+        <span>
+          © {new Date().getFullYear()} Squarely — a{" "}
+          <a href="https://neostechus.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-900">
+            NeosTechus
+          </a>{" "}
+          property. All rights reserved.
+        </span>
         <span className="flex gap-4">
           <Link href="/terms" className="hover:text-slate-900">Terms</Link>
           <Link href="/privacy" className="hover:text-slate-900">Privacy</Link>
