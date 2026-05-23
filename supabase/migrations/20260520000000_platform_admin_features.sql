@@ -34,3 +34,8 @@ grant select, insert, update, delete on announcements, admin_audit to anon, auth
 alter table merchants add column if not exists kiosk_image_url text;
 alter table merchants add column if not exists kiosk_headline text;
 alter table merchants add column if not exists kiosk_subtext text;
+
+-- FK so the audit log can embed the client (merchant) name.
+alter table admin_audit
+  add constraint admin_audit_merchant_fk
+  foreign key (merchant_id) references merchants(id) on delete set null;
