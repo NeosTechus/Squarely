@@ -98,6 +98,19 @@ export default function Kiosk() {
     return [];
   }, [items, search, selectedCat]);
 
+  // Combo suggestions derived from the store's items: prefer add-on categories
+  // (drinks/desserts/sides) the customer hasn't added yet.
+  const suggestions = useMemo(() => {
+    const inCart = new Set(lines.map((l) => l.item_id));
+    const addonRe = /drink|beverage|dessert|side|combo|extra|sweet/i;
+    const addonCatIds = new Set(categories.filter((c) => addonRe.test(c.name)).map((c) => c.id));
+    let pool = items.filter(
+      (i) => !inCart.has(i.id) && (addonCatIds.size ? !!i.category_id && addonCatIds.has(i.category_id) : true),
+    );
+    if (pool.length === 0) pool = items.filter((i) => !inCart.has(i.id));
+    return pool.slice(0, 8);
+  }, [items, categories, lines]);
+
   const subtotal = lines.reduce((s, l) => s + l.price_cents * l.qty, 0);
   const cartCount = lines.reduce((s, l) => s + l.qty, 0);
   const qtyFor = (id: string) => lines.find((l) => l.item_id === id)?.qty ?? 0;
@@ -304,6 +317,36 @@ export default function Kiosk() {
             data={lines}
             keyExtractor={(l) => l.item_id}
             ListEmptyComponent={<Text className="mt-8 text-center text-slate-400">Your cart is empty.</Text>}
+            ListFooterComponent={
+              suggestions.length > 0 ? (
+                <View className="mt-5">
+                  <Text className="mb-1 text-base font-bold text-slate-800">Complete your meal</Text>
+                  <Text className="mb-3 text-xs text-slate-400">Suggested add-ons</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View className="flex-row gap-3 pb-1">
+                      {suggestions.map((s) => (
+                        <Pressable
+                          key={s.id}
+                          onPress={() => add(s)}
+                          className="w-32 overflow-hidden rounded-2xl border border-slate-200 bg-white active:bg-slate-50"
+                        >
+                          {s.image_url ? (
+                            <Image source={{ uri: s.image_url }} resizeMode="cover" className="h-20 w-full" />
+                          ) : null}
+                          <View className="p-2">
+                            <Text className="text-sm font-semibold" numberOfLines={1}>{s.name}</Text>
+                            <View className="mt-1 flex-row items-center justify-between">
+                              <Text className="text-xs text-slate-500">{fmt(s.price_cents)}</Text>
+                              <Text className="text-lg font-bold" style={{ color: brand }}>＋</Text>
+                            </View>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              ) : null
+            }
             renderItem={({ item }) => (
               <View className="mb-2 flex-row items-center justify-between rounded-xl border border-slate-100 bg-white p-3">
                 <Text className="flex-1 pr-2 font-semibold">{item.name}</Text>
