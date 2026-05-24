@@ -201,6 +201,7 @@ export default function Pos() {
                   })
                 }
                 className="flex-1 rounded-xl border border-slate-200 bg-white p-2 active:bg-slate-50"
+                style={{ maxWidth: wide ? "24%" : "32%" }}
               >
                 {item.image_url ? (
                   <Image

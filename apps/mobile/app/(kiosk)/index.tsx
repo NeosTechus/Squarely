@@ -425,26 +425,24 @@ export default function Kiosk() {
         />
       )}
 
-      {/* floating Review Cart — Pay bar */}
+      {/* floating Review Cart — Pay pill (compact, bottom-right) */}
       {cartCount > 0 ? (
-        <View className="absolute inset-x-4 bottom-5">
-          <Pressable
-            onPress={() => setStep("review")}
-            className="flex-row items-center justify-between rounded-2xl px-5 py-4 shadow-lg active:opacity-90"
-            style={{ backgroundColor: brand }}
-          >
-            <View className="flex-row items-center gap-3">
-              <Text className="text-lg">🛍️</Text>
-              <Text className="text-base font-bold text-white">Review cart — Pay</Text>
-            </View>
-            <View className="flex-row items-center gap-2">
-              <Text className="text-base font-bold text-white">{fmt(subtotal)}</Text>
-              <View className="h-6 min-w-[24px] items-center justify-center rounded-full bg-white/25 px-1.5">
-                <Text className="text-xs font-bold text-white">{cartCount}</Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
+        <Pressable
+          onPress={() => setStep("review")}
+          className="absolute bottom-5 right-4 flex-row items-center gap-3 rounded-2xl py-3 pl-5 pr-3 shadow-lg active:opacity-90"
+          style={{ backgroundColor: brand }}
+        >
+          <Text className="text-base">🛍️</Text>
+          <Text className="text-sm font-bold uppercase tracking-wide text-white">Review cart — Pay</Text>
+          <View className="h-7 w-px bg-white/30" />
+          <View className="items-end">
+            <Text className="text-[9px] uppercase tracking-wide text-white/70">Total</Text>
+            <Text className="text-sm font-bold text-white">{fmt(subtotal)}</Text>
+          </View>
+          <View className="h-6 min-w-[24px] items-center justify-center rounded-full bg-white/25 px-1.5">
+            <Text className="text-xs font-bold text-white">{cartCount}</Text>
+          </View>
+        </Pressable>
       ) : null}
     </ScreenContainer>
   );
