@@ -65,12 +65,24 @@ export default function Pos() {
     enabled: Boolean(merchantId),
     queryKey: ["pos-open-orders", merchantId],
     queryFn: async () => {
+      // Auto-expire stale unpaid counter orders (older than 1 hour) so they
+      // don't pile up in the queue.
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      await (supabase as any)
+        .from("orders")
+        .update({ status: "cancelled" })
+        .eq("merchant_id", merchantId)
+        .eq("payment_status", "unpaid")
+        .neq("status", "cancelled")
+        .lt("created_at", cutoff);
+
       const { data, error } = await (supabase as any)
         .from("orders")
         .select("id, number, order_type, total_cents, source, created_at, order_items(id, item_id, name_snapshot, unit_price_cents, quantity)")
         .eq("merchant_id", merchantId)
         .eq("payment_status", "unpaid")
         .neq("status", "cancelled")
+        .gte("created_at", cutoff)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Array<{

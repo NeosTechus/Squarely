@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
@@ -314,7 +315,7 @@ export default function Kiosk() {
         className="flex-row items-center gap-2 rounded-xl px-4 py-2 active:opacity-90"
         style={{ backgroundColor: cartCount ? brand : "#e2e8f0" }}
       >
-        <Text className="text-base">🛍️</Text>
+        <Ionicons name="bag-handle-outline" size={18} color={cartCount ? "#ffffff" : "#94a3b8"} />
         <Text className="font-bold" style={{ color: cartCount ? "#ffffff" : "#94a3b8" }}>{fmt(subtotal)}</Text>
       </Pressable>
     </View>
@@ -533,7 +534,7 @@ export default function Kiosk() {
           className="absolute bottom-5 right-4 flex-row items-center gap-3 rounded-2xl py-3 pl-5 pr-3 shadow-lg active:opacity-90"
           style={{ backgroundColor: brand }}
         >
-          <Text className="text-base">🛍️</Text>
+          <Ionicons name="bag-handle-outline" size={18} color="#ffffff" />
           <Text className="text-sm font-bold uppercase tracking-wide text-white">Review cart — Pay</Text>
           <View className="h-7 w-px bg-white/30" />
           <View className="items-end">
