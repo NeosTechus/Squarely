@@ -313,28 +313,44 @@ export default function Kiosk() {
     const q = qtyFor(item.id);
     const customizable = (item.modifier_group_ids?.length ?? 0) > 0;
     return (
-      <Pressable onPress={() => add(item)} className="flex-1 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50">
-        <View className="flex-1 pr-3">
-          <Text className="text-base font-semibold" numberOfLines={1}>{item.name}</Text>
-          {item.description ? (
-            <Text className="mt-1 text-xs text-slate-500" numberOfLines={2}>{item.description}</Text>
-          ) : null}
-          <View className="mt-2 flex-row items-center gap-2">
-            <Text className="text-base font-medium text-slate-700">{fmt(item.price_cents)}</Text>
-            {customizable ? (
-              <Text className="rounded bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">Customizable</Text>
+      <View className={`flex-1 rounded-2xl border bg-white p-3 ${q > 0 ? "border-brand-500" : "border-slate-200"}`}>
+        <Pressable onPress={() => add(item)} className="flex-row items-center justify-between active:opacity-80">
+          <View className="flex-1 pr-3">
+            <Text className="text-base font-semibold" numberOfLines={1}>{item.name}</Text>
+            {item.description ? (
+              <Text className="mt-1 text-xs text-slate-500" numberOfLines={2}>{item.description}</Text>
             ) : null}
-            {q > 0 ? (
-              <View className="h-5 min-w-[20px] items-center justify-center rounded-full px-1.5" style={{ backgroundColor: brand }}>
-                <Text className="text-[11px] font-bold text-white">{q}</Text>
-              </View>
-            ) : null}
+            <View className="mt-2 flex-row items-center gap-2">
+              <Text className="text-base font-medium text-slate-700">{fmt(item.price_cents)}</Text>
+              {customizable ? (
+                <Text className="rounded bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">Customizable</Text>
+              ) : null}
+            </View>
           </View>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} resizeMode="cover" className="h-16 w-16 rounded-xl" />
+          ) : null}
+        </Pressable>
+
+        {/* add / stepper — remove items right here */}
+        <View className="mt-3 flex-row items-center justify-end">
+          {q > 0 ? (
+            <View className="flex-row items-center gap-3">
+              <Pressable onPress={() => dec(item.id)} className="h-9 w-9 items-center justify-center rounded-full bg-slate-100 active:bg-slate-200">
+                <Text className="text-xl text-slate-700">−</Text>
+              </Pressable>
+              <Text className="w-6 text-center text-base font-bold">{q}</Text>
+              <Pressable onPress={() => add(item)} className="h-9 w-9 items-center justify-center rounded-full active:opacity-90" style={{ backgroundColor: brand }}>
+                <Text className="text-xl text-white">+</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={() => add(item)} className="rounded-full px-5 py-2 active:opacity-90" style={{ backgroundColor: brand }}>
+              <Text className="text-sm font-semibold text-white">Add</Text>
+            </Pressable>
+          )}
         </View>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} resizeMode="cover" className="h-16 w-16 rounded-xl" />
-        ) : null}
-      </Pressable>
+      </View>
     );
   };
 
