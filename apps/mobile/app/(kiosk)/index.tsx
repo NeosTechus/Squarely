@@ -6,15 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useKioskConfig } from "@/lib/useKioskConfig";
-import { usePaymentGateways } from "@/lib/usePaymentGateways";
-import { getGatewayPlugin } from "@squarely/payments";
 
-/** Map a gateway provider id -> the orders.payment_method enum. */
-function providerToPaymentMethod(provider: string): "card" | "cash" | "split" | "other" {
-  if (provider === "cash") return "cash";
-  if (provider === "valor" || provider === "stripe" || provider === "square") return "card";
-  return "other";
-}
+type PayChoice = "counter" | "card";
 
 interface MenuItem {
   id: string;
@@ -47,17 +40,12 @@ export default function Kiosk() {
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
-  const [receipt, setReceipt] = useState<{ lines: Line[]; subtotal: number; orderType: OrderType } | null>(null);
+  const [receipt, setReceipt] = useState<{ lines: Line[]; subtotal: number; orderType: OrderType; paid: boolean } | null>(null);
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
   const kiosk = useKioskConfig();
-  const { data: gateways = [] } = usePaymentGateways();
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedProvider && gateways[0]) setSelectedProvider(gateways[0].provider);
-  }, [gateways, selectedProvider]);
+  const [payChoice, setPayChoice] = useState<PayChoice>("counter");
 
   const active = step === "menu" || step === "review";
 
@@ -172,8 +160,7 @@ export default function Kiosk() {
     mutationFn: async () => {
       if (!merchantId) throw new Error("No active merchant.");
       if (lines.length === 0) throw new Error("Add something first.");
-      const provider = selectedProvider ?? gateways[0]?.provider ?? "cash";
-      if (!provider) throw new Error("No payment method selected.");
+      const paid = payChoice === "card";
       const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", { p_merchant_id: merchantId });
       if (numErr) throw numErr;
       const { data: order, error: orderErr } = await (supabase as any)
@@ -186,8 +173,8 @@ export default function Kiosk() {
           status: "received",
           subtotal_cents: subtotal,
           total_cents: subtotal,
-          payment_method: providerToPaymentMethod(provider),
-          payment_status: "paid",
+          payment_method: paid ? "card" : null,
+          payment_status: paid ? "paid" : "unpaid",
         })
         .select("id, number")
         .single();
@@ -200,7 +187,7 @@ export default function Kiosk() {
       return created.number;
     },
     onSuccess: (number) => {
-      setReceipt({ lines, subtotal, orderType });
+      setReceipt({ lines, subtotal, orderType, paid: payChoice === "card" });
       setOrderNumber(number);
       setLines([]);
       setSelectedCat(null);
@@ -284,8 +271,17 @@ export default function Kiosk() {
                 <Text className="text-2xl font-bold" style={{ color: brand }}>{fmt(receipt?.subtotal ?? 0)}</Text>
               </View>
             </View>
-            <Text className="mt-6 text-2xl font-semibold text-emerald-600">✓ Payment received</Text>
-            <Text className="mt-1 text-lg text-slate-500">We'll call your number when it's ready</Text>
+            {receipt?.paid ? (
+              <>
+                <Text className="mt-6 text-2xl font-semibold text-emerald-600">✓ Payment received</Text>
+                <Text className="mt-1 text-lg text-slate-500">We'll call your number when it's ready</Text>
+              </>
+            ) : (
+              <>
+                <Text className="mt-6 text-2xl font-semibold text-slate-700">Please pay at the counter</Text>
+                <Text className="mt-1 text-lg text-slate-500">Show your order number to the cashier</Text>
+              </>
+            )}
             <Pressable onPress={resetAll} className="mt-8 w-full items-center rounded-2xl py-5 active:opacity-90" style={{ backgroundColor: brand }}>
               <Text className="text-2xl font-bold text-white">Start new order</Text>
             </Pressable>
@@ -379,27 +375,32 @@ export default function Kiosk() {
             )}
           />
           <View className="border-t border-slate-200 pt-3">
-            {/* payment method */}
-            <Text className="mb-2 text-sm font-semibold text-slate-500">Payment method</Text>
-            <View className="mb-3 flex-row flex-wrap gap-2">
-              {gateways.map((g) => {
-                const selected = g.provider === selectedProvider;
-                const label = getGatewayPlugin(g.provider)?.label ?? g.provider;
+            {/* how to pay */}
+            <Text className="mb-2 text-sm font-semibold text-slate-500">How would you like to pay?</Text>
+            <View className="mb-3 flex-row gap-3">
+              {([
+                { key: "counter", emoji: "🧑‍💼", label: "Pay at counter" },
+                { key: "card", emoji: "💳", label: "Pay by card" },
+              ] as const).map((opt) => {
+                const sel = payChoice === opt.key;
                 return (
                   <Pressable
-                    key={g.provider}
-                    onPress={() => setSelectedProvider(g.provider)}
-                    className="rounded-full border px-4 py-2"
-                    style={{ backgroundColor: selected ? brand : "#ffffff", borderColor: selected ? brand : "#e2e8f0" }}
+                    key={opt.key}
+                    onPress={() => setPayChoice(opt.key)}
+                    className="flex-1 items-center rounded-2xl border-2 py-4"
+                    style={{ borderColor: sel ? brand : "#e2e8f0", backgroundColor: sel ? `${brand}14` : "#ffffff" }}
                   >
-                    <Text className="text-sm font-semibold" style={{ color: selected ? "#ffffff" : "#475569" }}>{label}</Text>
+                    <Text className="text-2xl">{opt.emoji}</Text>
+                    <Text className="mt-1 text-sm font-semibold" style={{ color: sel ? brand : "#475569" }}>{opt.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
             <View className="flex-row justify-between"><Text className="text-xl font-bold">Total</Text><Text className="text-xl font-bold">{fmt(subtotal)}</Text></View>
-            <Pressable disabled={lines.length === 0 || placeOrder.isPending || !selectedProvider} onPress={() => placeOrder.mutate()} className="mt-4 items-center rounded-2xl py-4 active:opacity-90 disabled:opacity-40" style={{ backgroundColor: brand }}>
-              <Text className="text-lg font-bold text-white">{placeOrder.isPending ? "Processing…" : `Pay ${fmt(subtotal)}`}</Text>
+            <Pressable disabled={lines.length === 0 || placeOrder.isPending} onPress={() => placeOrder.mutate()} className="mt-4 items-center rounded-2xl py-4 active:opacity-90 disabled:opacity-40" style={{ backgroundColor: brand }}>
+              <Text className="text-lg font-bold text-white">
+                {placeOrder.isPending ? "Placing…" : payChoice === "card" ? `Pay ${fmt(subtotal)}` : "Place order"}
+              </Text>
             </Pressable>
             {placeOrder.isError ? <Text className="mt-2 text-center text-red-600">{(placeOrder.error as Error).message}</Text> : null}
           </View>

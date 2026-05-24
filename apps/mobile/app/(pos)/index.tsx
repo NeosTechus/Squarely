@@ -1,21 +1,12 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, useWindowDimensions } from "react-native";
+import { useState } from "react";
+import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getGatewayPlugin } from "@squarely/payments";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
 import { useCart } from "@/store/cart";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
-import { usePaymentGateways } from "@/lib/usePaymentGateways";
 import { OrderRow } from "@/components/OrderRow";
-
-/** Map a gateway provider id -> the orders.payment_method enum. */
-function providerToPaymentMethod(provider: string): "card" | "cash" | "split" | "other" {
-  if (provider === "cash") return "cash";
-  if (provider === "valor" || provider === "stripe" || provider === "square") return "card";
-  return "other";
-}
 
 interface MenuItem {
   id: string;
@@ -35,9 +26,16 @@ export default function Pos() {
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
 
-  const { data: gateways = [] } = usePaymentGateways();
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [showOrders, setShowOrders] = useState(false);
+  const [showOpen, setShowOpen] = useState(false);
+
+  // Payment: cash / card / split. For split, the cashier enters the cash part.
+  type PayType = "cash" | "card" | "split";
+  const [payType, setPayType] = useState<PayType>("cash");
+  const [splitCash, setSplitCash] = useState("");
+
+  // When settling a "pay at counter" order placed from the kiosk.
+  const [settling, setSettling] = useState<{ id: string; number: number } | null>(null);
 
   // Recent orders + today's analytics for the POS top strip.
   const { data: orders = [], refetch: refetchOrders } = useQuery({
@@ -62,12 +60,42 @@ export default function Pos() {
   const todayCount = todays.length;
   const todayAvg = todayCount ? Math.round(todayRevenue / todayCount) : 0;
 
-  // Pre-select the default (first) gateway once they load.
-  useEffect(() => {
-    if (!selectedProvider && gateways[0]) {
-      setSelectedProvider(gateways[0].provider);
+  // Open ("pay at counter") orders awaiting checkout — e.g. placed at the kiosk.
+  const { data: openOrders = [], refetch: refetchOpen } = useQuery({
+    enabled: Boolean(merchantId),
+    queryKey: ["pos-open-orders", merchantId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("orders")
+        .select("id, number, order_type, total_cents, source, created_at, order_items(id, item_id, name_snapshot, unit_price_cents, quantity)")
+        .eq("merchant_id", merchantId)
+        .eq("payment_status", "unpaid")
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string; number: number; order_type: string; total_cents: number; source: string; created_at: string;
+        order_items: Array<{ id: string; item_id: string; name_snapshot: string; unit_price_cents: number; quantity: number }>;
+      }>;
+    },
+  });
+
+  // Load an open order's items into the cart to collect payment for it.
+  const loadOpenOrder = (o: (typeof openOrders)[number]) => {
+    cart.clear();
+    for (const li of o.order_items ?? []) {
+      cart.addLine({
+        id: `${li.item_id}-${li.id}`,
+        item_id: li.item_id,
+        name: li.name_snapshot,
+        unit_price_cents: li.unit_price_cents,
+        quantity: li.quantity,
+        modifiers: [],
+      });
     }
-  }, [gateways, selectedProvider]);
+    setSettling({ id: o.id, number: o.number });
+    setShowOpen(false);
+  };
 
   const {
     data: items = [],
@@ -94,18 +122,28 @@ export default function Pos() {
       if (!merchantId) throw new Error("No active merchant.");
       const lines = cart.lines;
       if (lines.length === 0) throw new Error("Cart is empty.");
-      const provider = selectedProvider ?? gateways[0]?.provider ?? "cash";
-      if (!provider) throw new Error("No payment gateway selected.");
       const subtotal = cart.subtotalCents();
 
-      const paymentMethod = providerToPaymentMethod(provider);
-      // Manual gateways (cash) settle at the counter, so mark paid immediately.
-      // Card gateways (valor/stripe/square) are also marked paid for now since we
-      // don't have processor credentials yet — we record the sale without contacting
-      // the processor.
-      // TODO: real card capture via PaymentProvider adapter
-      const paymentStatus = "paid";
+      // Recorded payment (no real processor yet). payment_method = cash | card | split.
+      if (payType === "split") {
+        const cashPart = Math.round((parseFloat(splitCash) || 0) * 100);
+        if (cashPart <= 0 || cashPart >= subtotal) {
+          throw new Error("Enter the cash portion (less than the total); the rest goes on card.");
+        }
+      }
+      const paymentMethod = payType; // "cash" | "card" | "split"
 
+      // Settling an existing open ("pay at counter") order — just mark it paid.
+      if (settling) {
+        const { error } = await (supabase as any)
+          .from("orders")
+          .update({ payment_method: paymentMethod, payment_status: "paid", status: "completed" })
+          .eq("id", settling.id);
+        if (error) throw error;
+        return { number: settling.number };
+      }
+
+      // Brand-new POS sale.
       const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", {
         p_merchant_id: merchantId,
       });
@@ -122,7 +160,7 @@ export default function Pos() {
           subtotal_cents: subtotal,
           total_cents: subtotal,
           payment_method: paymentMethod,
-          payment_status: paymentStatus,
+          payment_status: "paid",
         })
         .select("id, number")
         .single();
@@ -139,14 +177,18 @@ export default function Pos() {
         })),
       );
       if (itemsErr) throw itemsErr;
-      return created;
+      return { number: created.number };
     },
-    onSuccess: (order) => {
-      Alert.alert("Order complete", `Order #${order.number} charged.`);
+    onSuccess: (res) => {
+      Alert.alert("Payment complete", `Order #${res.number} paid.`);
       cart.clear();
+      setSettling(null);
+      setSplitCash("");
+      setPayType("cash");
       refetchOrders();
+      refetchOpen();
     },
-    onError: (e) => Alert.alert("Charge failed", (e as Error).message),
+    onError: (e) => Alert.alert("Payment failed", (e as Error).message),
   });
 
   return (
@@ -158,6 +200,13 @@ export default function Pos() {
             <Stat label="Today" value={fmt(todayRevenue)} />
             <Stat label="Orders" value={String(todayCount)} />
             <Stat label="Avg" value={fmt(todayAvg)} />
+            <Pressable
+              onPress={() => { refetchOpen(); setShowOpen(true); }}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 active:bg-slate-50"
+            >
+              <Text className="text-xs uppercase tracking-wide text-slate-500">Open</Text>
+              <Text className="mt-1 text-sm font-bold text-brand-600">{openOrders.length} ›</Text>
+            </Pressable>
             <Pressable
               onPress={() => { refetchOrders(); setShowOrders(true); }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 active:bg-slate-50"
@@ -223,7 +272,17 @@ export default function Pos() {
               : "border-t border-slate-200 bg-white p-4"
           }
         >
-          <Text className="text-xl font-bold">Cart</Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-xl font-bold">{settling ? `Order #${settling.number}` : "Cart"}</Text>
+            {settling ? (
+              <Pressable onPress={() => { setSettling(null); cart.clear(); }} hitSlop={8}>
+                <Text className="text-sm font-medium text-red-500">Cancel</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {settling ? (
+            <Text className="mt-1 text-xs text-amber-600">Collecting payment for a counter order</Text>
+          ) : null}
           <FlatList
             className={wide ? "mt-3 flex-1" : "mt-3 max-h-44"}
             data={cart.lines}
@@ -250,52 +309,93 @@ export default function Pos() {
               <Text className="font-semibold">Subtotal</Text>
               <Text className="font-semibold">{fmt(cart.subtotalCents())}</Text>
             </View>
-            {gateways.length > 0 ? (
-              <View className="mt-3">
-                <Text className="mb-2 text-sm font-semibold text-slate-500">Payment</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {gateways.map((g) => {
-                    const selected = g.provider === selectedProvider;
-                    const label = getGatewayPlugin(g.provider)?.label ?? g.provider;
-                    return (
-                      <Pressable
-                        key={g.provider}
-                        onPress={() => setSelectedProvider(g.provider)}
-                        className="rounded-full border px-4 py-2"
-                        style={{
-                          backgroundColor: selected ? brand : "#ffffff",
-                          borderColor: selected ? brand : "#e2e8f0",
-                        }}
-                      >
-                        <Text
-                          className="text-sm font-semibold"
-                          style={{ color: selected ? "#ffffff" : "#475569" }}
-                        >
-                          {label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+            {/* payment type: cash / card / split */}
+            <View className="mt-3">
+              <Text className="mb-2 text-sm font-semibold text-slate-500">Payment</Text>
+              <View className="flex-row gap-2">
+                {(["cash", "card", "split"] as const).map((t) => {
+                  const sel = payType === t;
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => setPayType(t)}
+                      className="flex-1 items-center rounded-xl border py-2"
+                      style={{ backgroundColor: sel ? brand : "#ffffff", borderColor: sel ? brand : "#e2e8f0" }}
+                    >
+                      <Text className="text-sm font-semibold capitalize" style={{ color: sel ? "#ffffff" : "#475569" }}>{t}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-            ) : null}
+              {payType === "split" ? (
+                <View className="mt-2">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-sm text-slate-500">Cash</Text>
+                    <TextInput
+                      value={splitCash}
+                      onChangeText={setSplitCash}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </View>
+                  <Text className="mt-1 text-xs text-slate-400">
+                    Card: {fmt(Math.max(0, cart.subtotalCents() - Math.round((parseFloat(splitCash) || 0) * 100)))}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Button
-              label={charge.isPending ? "Charging…" : "Charge"}
+              label={charge.isPending ? "Processing…" : `${settling ? "Collect" : "Charge"} ${fmt(cart.subtotalCents())}`}
               size="lg"
               className="mt-4"
               style={{ backgroundColor: brand }}
-              disabled={cart.lines.length === 0 || charge.isPending || !selectedProvider}
+              disabled={cart.lines.length === 0 || charge.isPending}
               onPress={() => charge.mutate()}
             />
             <Button
               label="Clear"
               variant="ghost"
               className="mt-2"
-              onPress={cart.clear}
+              onPress={() => { cart.clear(); setSettling(null); setSplitCash(""); }}
             />
           </View>
         </View>
       </View>
+
+      {/* Open ("pay at counter") orders modal */}
+      <Modal visible={showOpen} animationType="slide" transparent onRequestClose={() => setShowOpen(false)}>
+        <Pressable onPress={() => setShowOpen(false)} className="flex-1 bg-slate-900/40" />
+        <View className="absolute bottom-0 left-0 right-0 max-h-[75%] rounded-t-3xl bg-white">
+          <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
+            <Text className="text-lg font-bold">Open orders · pay at counter</Text>
+            <Pressable onPress={() => setShowOpen(false)} hitSlop={8}>
+              <Text className="text-sm font-medium text-brand-600">Close</Text>
+            </Pressable>
+          </View>
+          <FlatList
+            data={openOrders}
+            keyExtractor={(o) => o.id}
+            contentContainerStyle={{ padding: 16, gap: 8 }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => loadOpenOrder(item)}
+                className="flex-row items-center justify-between rounded-xl border border-slate-200 p-4 active:bg-slate-50"
+              >
+                <View className="flex-1">
+                  <Text className="font-semibold">#{item.number} · {item.order_type === "dine_in" ? "Dine in" : "To go"}</Text>
+                  <Text className="text-xs text-slate-400">
+                    {(item.order_items?.length ?? 0)} item{(item.order_items?.length ?? 0) === 1 ? "" : "s"} · {item.source} · {new Date(item.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                  </Text>
+                </View>
+                <Text className="mr-2 font-semibold">{fmt(item.total_cents)}</Text>
+                <Text className="text-brand-600">Collect ›</Text>
+              </Pressable>
+            )}
+            ListEmptyComponent={<Text className="mt-8 text-center text-slate-400">No open orders.</Text>}
+          />
+        </View>
+      </Modal>
 
       {/* Order history modal */}
       <Modal visible={showOrders} animationType="slide" transparent onRequestClose={() => setShowOrders(false)}>
