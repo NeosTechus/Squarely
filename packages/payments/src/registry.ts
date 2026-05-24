@@ -9,7 +9,15 @@
  * `secret: true` fields must only ever be handled server-side.
  */
 
-export type GatewayId = "cash" | "valor" | "stripe" | "square";
+export type GatewayId =
+  | "cash"
+  | "stripe"
+  | "square"
+  | "paypal"
+  | "adyen"
+  | "authorizenet"
+  | "clover"
+  | "valor";
 
 export interface GatewayConfigField {
   key: string;
@@ -65,6 +73,49 @@ export const GATEWAY_CATALOG: GatewayPlugin[] = [
     configFields: [
       { key: "accessToken", label: "Access token", secret: true },
       { key: "locationId", label: "Square location id" },
+      { key: "environment", label: "Environment (sandbox / production)", placeholder: "production", optional: true },
+    ],
+  },
+  {
+    id: "paypal",
+    label: "PayPal",
+    description: "PayPal / Venmo checkout and PayPal Here card readers.",
+    manual: false,
+    configFields: [
+      { key: "clientId", label: "Client ID" },
+      { key: "clientSecret", label: "Client secret", secret: true },
+      { key: "environment", label: "Environment (sandbox / live)", placeholder: "live", optional: true },
+    ],
+  },
+  {
+    id: "adyen",
+    label: "Adyen",
+    description: "Adyen unified commerce — terminals and online payments.",
+    manual: false,
+    configFields: [
+      { key: "apiKey", label: "API key", secret: true },
+      { key: "merchantAccount", label: "Merchant account" },
+      { key: "hmacKey", label: "Webhook HMAC key", secret: true, optional: true },
+    ],
+  },
+  {
+    id: "authorizenet",
+    label: "Authorize.Net",
+    description: "Authorize.Net payment gateway (cards, e-checks).",
+    manual: false,
+    configFields: [
+      { key: "apiLoginId", label: "API login ID" },
+      { key: "transactionKey", label: "Transaction key", secret: true },
+    ],
+  },
+  {
+    id: "clover",
+    label: "Clover",
+    description: "Clover devices and the Clover Ecommerce API.",
+    manual: false,
+    configFields: [
+      { key: "merchantId", label: "Clover merchant ID" },
+      { key: "apiToken", label: "API token", secret: true },
     ],
   },
 ];
