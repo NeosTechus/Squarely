@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { setImpersonatedMerchant } from "@/lib/impersonation";
 import { setSuspended, changePlan, resetOwnerPassword, logImpersonation } from "./actions";
+import { GatewayEditor } from "@/components/GatewayEditor";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
 const FEATURES: { key: FeatureKey; label: string }[] = [
@@ -329,6 +330,14 @@ function ClientDetail({
             );
           })}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">Payment gateways</h3>
+        <p className="mb-3 text-xs text-slate-400">
+          Connect this client&apos;s processors. The default card gateway is used at checkout.
+        </p>
+        <GatewayEditor merchantId={m.id} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
