@@ -8,7 +8,7 @@ export default function About() {
     <main className="min-h-screen bg-white">
       <SiteNav />
       <section className="grain relative overflow-hidden bg-slate-950">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(51,163,255,0.18),transparent_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(249,115,22,0.18),transparent_70%)]" />
         <div className="relative z-10 mx-auto max-w-3xl px-6 pb-20 pt-28 text-center">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">About</p>
           <h1 className="mt-7 text-5xl font-bold tracking-tight text-white md:text-6xl">

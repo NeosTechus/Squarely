@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { useActiveMerchant } from "./useActiveMerchant";
 
-const DEFAULT_BRAND = "#4f46e5";
+const DEFAULT_BRAND = "#ea580c";
 
 /** The merchant's brand color, applied to POS/Kiosk customer-facing UI. */
 export function useMerchantTheme() {
