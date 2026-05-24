@@ -132,9 +132,11 @@ export default function Pos() {
           ) : null}
           <FlatList
             data={items}
-            numColumns={3}
-            columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ gap: 12 }}
+            numColumns={4}
+            className="flex-1"
+            columnWrapperStyle={{ gap: 8 }}
+            contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
+            showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               !isLoading && !error ? (
                 <Text className="mt-8 text-center text-slate-400">
@@ -154,17 +156,17 @@ export default function Pos() {
                     modifiers: [],
                   })
                 }
-                className="flex-1 rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50"
+                className="flex-1 rounded-xl border border-slate-200 bg-white p-2 active:bg-slate-50"
               >
                 {item.image_url ? (
                   <Image
                     source={{ uri: item.image_url }}
                     resizeMode="cover"
-                    className="h-24 w-full rounded-xl mb-2"
+                    className="h-14 w-full rounded-lg mb-1.5"
                   />
                 ) : null}
-                <Text className="text-base font-semibold">{item.name}</Text>
-                <Text className="mt-1 text-sm text-slate-500">{fmt(item.price_cents)}</Text>
+                <Text className="text-xs font-semibold" numberOfLines={1}>{item.name}</Text>
+                <Text className="text-xs text-slate-500">{fmt(item.price_cents)}</Text>
               </Pressable>
             )}
           />
