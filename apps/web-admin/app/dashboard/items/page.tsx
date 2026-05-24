@@ -81,6 +81,18 @@ export default function Items() {
     onError: (e) => setFormError((e as Error).message),
   });
 
+  const deleteItem = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("items").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setRowError(null);
+      qc.invalidateQueries({ queryKey: ["items", merchantId] });
+    },
+    onError: (e) => setRowError((e as Error).message),
+  });
+
   const setVisibility = useMutation({
     mutationFn: async ({ id, v }: { id: string; v: Visibility }) => {
       const { error } = await supabase
@@ -246,6 +258,20 @@ export default function Items() {
                   <span className="w-16 shrink-0 text-right text-slate-600">
                     {fmt(it.price_cents)}
                   </span>
+
+                  <button
+                    type="button"
+                    aria-label={`Delete ${it.name}`}
+                    disabled={deleteItem.isPending}
+                    onClick={() => {
+                      if (confirm(`Delete "${it.name}"? This can't be undone.`)) {
+                        deleteItem.mutate(it.id);
+                      }
+                    }}
+                    className="shrink-0 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
                 </li>
               );
             })}
