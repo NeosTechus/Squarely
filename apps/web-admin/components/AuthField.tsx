@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { useId, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface AuthFieldProps {
   label: string;
@@ -23,18 +24,23 @@ export function AuthField({
   autoComplete,
 }: AuthFieldProps) {
   const id = useId();
+  const [reveal, setReveal] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword && reveal ? "text" : type;
   return (
     <div className="relative">
       <input
         id={id}
-        type={type}
+        type={inputType}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
         minLength={minLength}
         autoComplete={autoComplete}
         placeholder=" "
-        className="peer w-full rounded-t-md border-b-2 border-slate-300 bg-slate-50 px-3 pb-2 pt-6 text-slate-900 outline-none transition-colors focus:border-brand-600"
+        className={`peer w-full rounded-t-md border-b-2 border-slate-300 bg-slate-50 px-3 pb-2 pt-6 text-slate-900 outline-none transition-colors focus:border-brand-600 ${
+          isPassword ? "pr-11" : ""
+        }`}
       />
       <label
         htmlFor={id}
@@ -45,6 +51,16 @@ export function AuthField({
         {label}
         {required ? " *" : ""}
       </label>
+      {isPassword ? (
+        <button
+          type="button"
+          onClick={() => setReveal((v) => !v)}
+          aria-label={reveal ? "Hide password" : "Show password"}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 transition-colors hover:text-slate-700"
+        >
+          {reveal ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      ) : null}
     </div>
   );
 }
