@@ -10,9 +10,11 @@ import { useKioskConfig } from "@/lib/useKioskConfig";
 interface MenuItem {
   id: string;
   name: string;
+  description: string | null;
   price_cents: number;
   image_url: string | null;
   category_id: string | null;
+  modifier_group_ids: string[] | null;
 }
 interface Category {
   id: string;
@@ -74,7 +76,7 @@ export default function Kiosk() {
     queryFn: async (): Promise<MenuItem[]> => {
       const { data, error } = await (supabase as any)
         .from("items")
-        .select("id, name, price_cents, image_url, category_id")
+        .select("id, name, description, price_cents, image_url, category_id, modifier_group_ids")
         .eq("merchant_id", merchantId)
         .eq("active", true)
         .eq("pos_only", false)
@@ -249,7 +251,7 @@ export default function Kiosk() {
     setStep("dining");
   };
   const backLabel =
-    step === "review" ? "Menu" : searching ? "Clear" : selectedCat ? selectedCat.name : "Dining Option";
+    step === "review" ? "Menu" : searching ? "Clear" : selectedCat ? "All Categories" : "Dining Option";
 
   const TopBar = (
     <View className="flex-row items-center justify-between border-b border-slate-100 bg-white px-4 py-3">
@@ -288,7 +290,7 @@ export default function Kiosk() {
                 <View className="flex-row items-center gap-3">
                   <Pressable onPress={() => dec(item.item_id)} className="h-9 w-9 items-center justify-center rounded-full bg-slate-100"><Text className="text-xl">−</Text></Pressable>
                   <Text className="w-6 text-center text-lg font-semibold">{item.qty}</Text>
-                  <Pressable onPress={() => add({ id: item.item_id, name: item.name, price_cents: item.price_cents, image_url: null, category_id: null })} className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: brand }}><Text className="text-xl text-white">+</Text></Pressable>
+                  <Pressable onPress={() => add({ id: item.item_id, name: item.name, description: null, price_cents: item.price_cents, image_url: null, category_id: null, modifier_group_ids: null })} className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: brand }}><Text className="text-xl text-white">+</Text></Pressable>
                   <Text className="w-20 text-right font-semibold">{fmt(item.price_cents * item.qty)}</Text>
                 </View>
               </View>
@@ -306,35 +308,66 @@ export default function Kiosk() {
     );
   }
 
+  // horizontal item card (text left, thumbnail right) — matches reference
+  const ItemCard = ({ item }: { item: MenuItem }) => {
+    const q = qtyFor(item.id);
+    const customizable = (item.modifier_group_ids?.length ?? 0) > 0;
+    return (
+      <Pressable onPress={() => add(item)} className="flex-1 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 active:bg-slate-50">
+        <View className="flex-1 pr-3">
+          <Text className="text-base font-semibold" numberOfLines={1}>{item.name}</Text>
+          {item.description ? (
+            <Text className="mt-1 text-xs text-slate-500" numberOfLines={2}>{item.description}</Text>
+          ) : null}
+          <View className="mt-2 flex-row items-center gap-2">
+            <Text className="text-base font-medium text-slate-700">{fmt(item.price_cents)}</Text>
+            {customizable ? (
+              <Text className="rounded bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-500">Customizable</Text>
+            ) : null}
+            {q > 0 ? (
+              <View className="h-5 min-w-[20px] items-center justify-center rounded-full px-1.5" style={{ backgroundColor: brand }}>
+                <Text className="text-[11px] font-bold text-white">{q}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} resizeMode="cover" className="h-16 w-16 rounded-xl" />
+        ) : null}
+      </Pressable>
+    );
+  };
+
+  const bannerUri = selectedCat ? catImage(selectedCat) : null;
+
   // ---- MENU (categories or items) ----
   return (
     <ScreenContainer edges={["bottom"]}>
       {TopBar}
-      <View className="flex-1 px-4 pt-3">
-        <View className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white px-4">
-          <Text className="mr-2 text-lg text-slate-400">🔍</Text>
-          <TextInput value={search} onChangeText={setSearch} placeholder="Search menu items…" placeholderTextColor="#94a3b8" autoCapitalize="none" className="flex-1 py-3 text-base text-slate-900" />
-          {search ? <Pressable onPress={() => setSearch("")} hitSlop={10}><Text className="text-lg text-slate-400">✕</Text></Pressable> : null}
-        </View>
 
-        {isLoading ? <ActivityIndicator className="mt-8" /> : null}
-
-        {!searching && !selectedCat ? (
-          /* CATEGORY TILES */
+      {!selectedCat && !searching ? (
+        /* search + CATEGORY TILES */
+        <View className="flex-1 px-4 pt-3">
+          <View className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white px-4">
+            <Text className="mr-2 text-lg text-slate-400">🔍</Text>
+            <TextInput value={search} onChangeText={setSearch} placeholder="Search menu items…" placeholderTextColor="#94a3b8" autoCapitalize="none" className="flex-1 py-3 text-base text-slate-900" />
+            {search ? <Pressable onPress={() => setSearch("")} hitSlop={10}><Text className="text-lg text-slate-400">✕</Text></Pressable> : null}
+          </View>
+          {isLoading ? <ActivityIndicator className="mt-8" /> : null}
           <FlatList
             data={categories}
             numColumns={2}
             key="cats"
             keyExtractor={(c) => c.id}
             columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
+            contentContainerStyle={{ gap: 12, paddingBottom: 100 }}
             ListEmptyComponent={!isLoading ? <Text className="mt-8 text-center text-slate-400">No menu yet.</Text> : null}
             renderItem={({ item }) => {
               const uri = catImage(item);
               return (
                 <Pressable onPress={() => setSelectedCat(item)} className="flex-1 overflow-hidden rounded-2xl active:opacity-90" style={{ height: 150 }}>
                   {uri ? (
-                    <ImageBackground source={{ uri }} resizeMode="cover" className="flex-1 justify-center">
+                    <ImageBackground source={{ uri }} resizeMode="cover" className="flex-1">
                       <View className="flex-1 items-center justify-center bg-black/35">
                         <Text className="text-2xl font-bold text-white">{item.name}</Text>
                       </View>
@@ -348,42 +381,55 @@ export default function Kiosk() {
               );
             }}
           />
-        ) : (
-          /* ITEM GRID */
-          <FlatList
-            data={shownItems}
-            numColumns={2}
-            key="items"
-            keyExtractor={(i) => i.id}
-            columnWrapperStyle={{ gap: 12 }}
-            contentContainerStyle={{ gap: 12, paddingBottom: 16 }}
-            ListEmptyComponent={!isLoading ? <Text className="mt-8 text-center text-slate-400">{searching ? `No items match "${search}".` : "No items in this category."}</Text> : null}
-            renderItem={({ item }) => {
-              const q = qtyFor(item.id);
-              return (
-                <Pressable onPress={() => add(item)} className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white active:bg-slate-50">
-                  {item.image_url ? (
-                    <Image source={{ uri: item.image_url }} resizeMode="cover" className="h-28 w-full" />
-                  ) : null}
-                  <View className="p-3">
-                    <Text className="text-base font-semibold" numberOfLines={1}>{item.name}</Text>
-                    <View className="mt-1 flex-row items-center justify-between">
-                      <Text className="text-base text-slate-500">{fmt(item.price_cents)}</Text>
-                      {q > 0 ? (
-                        <View className="h-6 min-w-[24px] items-center justify-center rounded-full px-1.5" style={{ backgroundColor: brand }}>
-                          <Text className="text-xs font-bold text-white">{q}</Text>
-                        </View>
-                      ) : (
-                        <Text className="text-xl" style={{ color: brand }}>＋</Text>
-                      )}
-                    </View>
+        </View>
+      ) : (
+        /* category banner + ITEM cards (or search results) */
+        <FlatList
+          data={shownItems}
+          numColumns={2}
+          key="items"
+          keyExtractor={(i) => i.id}
+          columnWrapperStyle={{ gap: 12 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100, gap: 12 }}
+          ListHeaderComponent={
+            selectedCat && bannerUri ? (
+              <View className="-mx-4 mb-3 overflow-hidden">
+                <ImageBackground source={{ uri: bannerUri }} resizeMode="cover" style={{ height: 150 }} className="justify-end">
+                  <View className="bg-black/25 px-6 py-4">
+                    <Text className="text-3xl font-bold text-white">{selectedCat.name}</Text>
                   </View>
-                </Pressable>
-              );
-            }}
-          />
-        )}
-      </View>
+                </ImageBackground>
+              </View>
+            ) : (
+              <Text className="mb-3 mt-1 text-lg font-bold text-slate-700">Results for “{search}”</Text>
+            )
+          }
+          ListEmptyComponent={!isLoading ? <Text className="mt-8 text-center text-slate-400">{searching ? `No items match "${search}".` : "No items in this category."}</Text> : null}
+          renderItem={({ item }) => <ItemCard item={item} />}
+        />
+      )}
+
+      {/* floating Review Cart — Pay bar */}
+      {cartCount > 0 ? (
+        <View className="absolute inset-x-4 bottom-5">
+          <Pressable
+            onPress={() => setStep("review")}
+            className="flex-row items-center justify-between rounded-2xl px-5 py-4 shadow-lg active:opacity-90"
+            style={{ backgroundColor: brand }}
+          >
+            <View className="flex-row items-center gap-3">
+              <Text className="text-lg">🛍️</Text>
+              <Text className="text-base font-bold text-white">Review cart — Pay</Text>
+            </View>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-base font-bold text-white">{fmt(subtotal)}</Text>
+              <View className="h-6 min-w-[24px] items-center justify-center rounded-full bg-white/25 px-1.5">
+                <Text className="text-xs font-bold text-white">{cartCount}</Text>
+              </View>
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
     </ScreenContainer>
   );
 }
