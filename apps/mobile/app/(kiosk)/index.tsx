@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView, useWindowDimensions } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
@@ -24,6 +24,7 @@ const fmt = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 export default function Kiosk() {
   const [step, setStep] = useState<"welcome" | "menu" | "done">("welcome");
+  const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [receipt, setReceipt] = useState<{ lines: Line[]; subtotal: number } | null>(null);
@@ -51,6 +52,12 @@ export default function Kiosk() {
       return data ?? [];
     },
   });
+
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) => it.name.toLowerCase().includes(q));
+  }, [items, search]);
 
   const subtotal = lines.reduce((s, l) => s + l.price_cents * l.qty, 0);
 
@@ -205,16 +212,35 @@ export default function Kiosk() {
       <View className={`flex-1 ${wide ? "flex-row" : "flex-col"}`}>
         <View className="flex-1 p-4">
           <Text className="mb-3 text-2xl font-bold">Menu</Text>
+          <View className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white px-4">
+            <Text className="mr-2 text-lg text-slate-400">🔍</Text>
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search items…"
+              placeholderTextColor="#94a3b8"
+              autoCapitalize="none"
+              className="flex-1 py-3 text-base text-slate-900"
+            />
+            {search ? (
+              <Pressable onPress={() => setSearch("")} hitSlop={10}>
+                <Text className="text-lg text-slate-400">✕</Text>
+              </Pressable>
+            ) : null}
+          </View>
           {isLoading ? <ActivityIndicator className="mt-8" /> : null}
           <FlatList
-            data={items}
+            data={filteredItems}
             numColumns={2}
             key="kiosk-grid-2"
             columnWrapperStyle={{ gap: 12 }}
             contentContainerStyle={{ gap: 12 }}
+            keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               !isLoading ? (
-                <Text className="mt-8 text-center text-slate-400">No items available.</Text>
+                <Text className="mt-8 text-center text-slate-400">
+                  {search ? `No items match "${search}".` : "No items available."}
+                </Text>
               ) : null
             }
             renderItem={({ item }) => (
