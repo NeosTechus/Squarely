@@ -27,7 +27,6 @@ export const navItems = [
   { href: "/dashboard/reports", label: "Reports", icon: TrendingUp },
   { href: "/dashboard/devices", label: "Devices", icon: Cpu },
   { href: "/dashboard/team", label: "Team", icon: UserCog },
-  { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
