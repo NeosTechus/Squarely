@@ -32,7 +32,7 @@ export default function Home() {
       {/* ───────── HERO ───────── */}
       <section className="grain relative overflow-hidden bg-slate-950">
         {/* radial spotlight */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(51,163,255,0.18),transparent_70%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(249,115,22,0.18),transparent_70%)]" />
         <div className="animate-blob pointer-events-none absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-brand-600/30 blur-3xl" />
         <div className="animate-blob pointer-events-none absolute -right-40 top-20 h-[34rem] w-[34rem] rounded-full bg-brand-500/20 blur-3xl" style={{ animationDelay: "-4s" }} />
         <div

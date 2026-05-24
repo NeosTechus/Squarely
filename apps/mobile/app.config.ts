@@ -32,7 +32,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: IS_DEV ? "com.squarely.app.dev" : "com.squarely.app",
-    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#1c84f5" },
+    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#ea580c" },
     permissions: ["CAMERA", "BLUETOOTH_CONNECT", "BLUETOOTH_SCAN", "INTERNET", "ACCESS_NETWORK_STATE"],
   },
   experiments: { typedRoutes: true },
