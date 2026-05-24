@@ -313,7 +313,7 @@ export default function Kiosk() {
     const q = qtyFor(item.id);
     const customizable = (item.modifier_group_ids?.length ?? 0) > 0;
     return (
-      <View className={`flex-1 rounded-2xl border bg-white p-3 ${q > 0 ? "border-brand-500" : "border-slate-200"}`}>
+      <View className={`flex-1 rounded-2xl border bg-white p-3 ${q > 0 ? "border-brand-500" : "border-slate-200"}`} style={{ maxWidth: "48.5%" }}>
         <Pressable onPress={() => add(item)} className="flex-row items-center justify-between active:opacity-80">
           <View className="flex-1 pr-3">
             <Text className="text-base font-semibold" numberOfLines={1}>{item.name}</Text>
@@ -381,7 +381,7 @@ export default function Kiosk() {
             renderItem={({ item }) => {
               const uri = catImage(item);
               return (
-                <Pressable onPress={() => setSelectedCat(item)} className="flex-1 overflow-hidden rounded-2xl active:opacity-90" style={{ height: 150 }}>
+                <Pressable onPress={() => setSelectedCat(item)} className="flex-1 overflow-hidden rounded-2xl active:opacity-90" style={{ height: 150, maxWidth: "48.5%" }}>
                   {uri ? (
                     <ImageBackground source={{ uri }} resizeMode="cover" className="flex-1">
                       <View className="flex-1 items-center justify-center bg-black/35">
