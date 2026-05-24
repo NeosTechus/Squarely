@@ -4,12 +4,15 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Providers } from "@/components/Providers";
 import { useBootMode } from "@/store/boot";
+import { useImpersonation } from "@/lib/impersonation";
 
 export default function RootLayout() {
   const hydrate = useBootMode((s) => s.hydrate);
+  const hydrateImpersonation = useImpersonation((s) => s.hydrate);
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydrateImpersonation();
+  }, [hydrate, hydrateImpersonation]);
   return (
     <Providers>
       <StatusBar style="auto" />

@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "./supabase";
+import { useImpersonation } from "./impersonation";
 
 /**
  * Resolves the signed-in user's active merchant id.
- * Reads the `active_merchant_id` JWT claim if present, otherwise falls back
- * to the user's first active membership.
+ * If a platform admin is "viewing as" a client, that merchant wins. Otherwise
+ * reads the `active_merchant_id` JWT claim, then falls back to the first active
+ * membership.
  */
 export function useActiveMerchant() {
+  const impersonatedId = useImpersonation((s) => s.merchantId);
   return useQuery({
-    queryKey: ["active-merchant"],
+    queryKey: ["active-merchant", impersonatedId],
     queryFn: async (): Promise<string | null> => {
+      if (impersonatedId) return impersonatedId;
+
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (!session) return null;
