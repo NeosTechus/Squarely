@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScreenContainer } from "@squarely/ui-mobile";
@@ -120,6 +120,26 @@ export default function Kiosk() {
     setStep("welcome");
   };
 
+  // Auto-reset to the welcome screen (empty cart) after inactivity, so the
+  // kiosk is ready for the next customer.
+  const IDLE_MS = 60000;
+  const lastActivity = useRef(Date.now());
+  const touchProps = {
+    onStartShouldSetResponderCapture: () => {
+      lastActivity.current = Date.now();
+      return false;
+    },
+  };
+  useEffect(() => {
+    if (step === "welcome") return;
+    lastActivity.current = Date.now();
+    const iv = setInterval(() => {
+      if (Date.now() - lastActivity.current > IDLE_MS) resetAll();
+    }, 5000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   const placeOrder = useMutation({
     mutationFn: async () => {
       if (!merchantId) throw new Error("No active merchant.");
@@ -193,7 +213,7 @@ export default function Kiosk() {
       </Pressable>
     );
     return (
-      <ScreenContainer>
+      <ScreenContainer {...touchProps}>
         <View className="flex-1 items-center justify-center p-6">
           <Text className="text-4xl font-bold text-slate-900">How would you like to order?</Text>
           <Text className="mt-2 text-lg text-slate-500">{storeName}</Text>
@@ -212,7 +232,7 @@ export default function Kiosk() {
   // ---- CONFIRMATION ----
   if (step === "done") {
     return (
-      <ScreenContainer>
+      <ScreenContainer {...touchProps}>
         <Pressable className="flex-1 items-center justify-center bg-slate-50 active:opacity-95" onPress={resetAll}>
           <View className="w-full max-w-2xl items-center px-6">
             <Text className="text-6xl font-bold" style={{ color: brand }}>Thank you! 🎉</Text>
@@ -275,7 +295,7 @@ export default function Kiosk() {
   // ---- REVIEW / CART ----
   if (step === "review") {
     return (
-      <ScreenContainer edges={["bottom"]}>
+      <ScreenContainer edges={["bottom"]} {...touchProps}>
         {TopBar}
         <View className="flex-1 p-4">
           <Text className="text-2xl font-bold">Your order · {orderType === "dine_in" ? "Dine in" : "To go"}</Text>
@@ -358,7 +378,7 @@ export default function Kiosk() {
 
   // ---- MENU (categories or items) ----
   return (
-    <ScreenContainer edges={["bottom"]}>
+    <ScreenContainer edges={["bottom"]} {...touchProps}>
       {TopBar}
 
       {!selectedCat && !searching ? (
