@@ -152,7 +152,7 @@ export default function Items() {
           e.preventDefault();
           addItem.mutate();
         }}
-        className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+        className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4"
       >
         <label className="flex-1 text-sm">
           <span className="text-slate-700">Name</span>
@@ -197,7 +197,7 @@ export default function Items() {
             {items.map((it) => {
               const vis = visibilityOf(it);
               return (
-                <li key={it.id} className="flex items-center gap-4 px-6 py-3 transition hover:bg-slate-50">
+                <li key={it.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 transition hover:bg-slate-50 sm:px-6">
                   <label className="relative shrink-0 cursor-pointer">
                     {it.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -229,7 +229,7 @@ export default function Items() {
                     />
                   </label>
 
-                  <span className="flex-1 font-medium">{it.name}</span>
+                  <span className="min-w-[8rem] flex-1 font-medium">{it.name}</span>
 
                   <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-300">
                     <button

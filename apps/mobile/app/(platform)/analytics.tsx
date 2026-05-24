@@ -132,7 +132,7 @@ export default function PlatformAnalytics() {
   const label = period === "custom" ? "range" : period;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         {/* period toggle */}
         <View className="flex-row gap-2">

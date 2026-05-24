@@ -46,7 +46,7 @@ export default function PlatformClients() {
   }, [clients, search]);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <View className="flex-1 p-4">
         <TextInput
           value={search}

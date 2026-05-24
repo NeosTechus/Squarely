@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="px-6 py-6">{children}</main>
+        <main className="px-4 py-6 sm:px-6">{children}</main>
       </div>
     </div>
   );

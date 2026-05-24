@@ -74,7 +74,7 @@ export default function PlatformAnnouncements() {
   });
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <FlatList
         contentContainerStyle={{ padding: 16, gap: 12 }}
         data={announcements}

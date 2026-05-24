@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [qc] = useState(
@@ -13,7 +14,9 @@ export function Providers({ children }: { children: ReactNode }) {
   );
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

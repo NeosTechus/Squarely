@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { Button } from "@squarely/ui-web";
 import { APP_LOGIN_URL, APP_SIGNUP_URL } from "@/lib/appUrl";
 
@@ -13,9 +15,10 @@ const links = [
 
 export function SiteNav() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
   return (
     <header className="fixed inset-x-0 top-0 z-50 px-4 pt-4">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/30 bg-white/40 px-3 py-2.5 shadow-lg shadow-slate-900/[0.06] ring-1 ring-slate-900/[0.04] backdrop-blur-2xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/40">
+      <nav className="relative mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-white/30 bg-white/40 px-3 py-2.5 shadow-lg shadow-slate-900/[0.06] ring-1 ring-slate-900/[0.04] backdrop-blur-2xl backdrop-saturate-150 supports-[backdrop-filter]:bg-white/40">
         {/* logo */}
         <Link href="/" className="flex items-center gap-2 pl-2 text-lg font-bold tracking-tight">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-black text-white shadow-sm">
@@ -49,7 +52,7 @@ export function SiteNav() {
         <div className="flex items-center gap-1.5">
           <a
             href={APP_LOGIN_URL}
-            className="rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/60 hover:text-slate-900"
+            className="hidden rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-white/60 hover:text-slate-900 sm:inline-flex"
           >
             Log in
           </a>
@@ -58,7 +61,49 @@ export function SiteNav() {
               Start free
             </Button>
           </a>
+          {/* mobile menu toggle */}
+          <button
+            type="button"
+            aria-label="Toggle menu"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="ml-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-white/60 hover:text-slate-900 md:hidden"
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {/* mobile dropdown */}
+        {open && (
+          <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-50 rounded-2xl border border-white/30 bg-white/80 p-2 shadow-lg ring-1 ring-slate-900/[0.04] backdrop-blur-2xl backdrop-saturate-150 md:hidden">
+            <div className="flex flex-col">
+              {links.map((l) => {
+                const active = pathname === l.href;
+                return (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
+                      active
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-slate-700 hover:bg-white/60 hover:text-slate-900"
+                    }`}
+                  >
+                    {l.label}
+                  </Link>
+                );
+              })}
+              <a
+                href={APP_LOGIN_URL}
+                className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-white/60 hover:text-slate-900 sm:hidden"
+              >
+                Log in
+              </a>
+            </div>
+          </div>
+        )}
       </nav>
     </header>
   );

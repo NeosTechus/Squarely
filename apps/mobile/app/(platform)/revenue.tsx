@@ -116,7 +116,7 @@ export default function PlatformRevenue() {
   const dash = (v: string) => (isLoading ? "…" : v);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         {/* stat cards */}
         <View className="flex-row flex-wrap gap-3">

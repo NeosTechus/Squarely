@@ -31,7 +31,7 @@ export default function PlatformAudit() {
   });
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <FlatList
         contentContainerStyle={{ padding: 16, gap: 10 }}
         data={rows}
