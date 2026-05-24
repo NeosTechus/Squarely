@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Card, ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
@@ -43,7 +42,6 @@ function rangeStart(p: Period): Date {
 export default function Admin() {
   const { data: merchantId } = useActiveMerchant();
   const [period, setPeriod] = useState<Period>("today");
-  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const clearMode = useBootMode((s) => s.clear);
 
@@ -137,7 +135,7 @@ export default function Admin() {
   return (
     <ScreenContainer>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: 20 + insets.top, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
         <View className="flex-row items-start justify-between">

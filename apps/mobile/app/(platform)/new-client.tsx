@@ -39,7 +39,7 @@ export default function NewClient() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         <Text className="text-sm text-slate-600">
           Creates the merchant, the owner login, and a subscription on the chosen plan.

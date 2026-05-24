@@ -80,7 +80,7 @@ export default function Categories() {
           e.preventDefault();
           addCategory.mutate();
         }}
-        className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4"
+        className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4"
       >
         <label className="flex-1 text-sm">
           <span className="text-slate-700">Name</span>
@@ -123,7 +123,7 @@ export default function Categories() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {categories.map((cat) => (
-              <li key={cat.id} className="flex items-center gap-4 px-6 py-3">
+              <li key={cat.id} className="flex items-center gap-4 px-4 py-3 sm:px-6">
                 {cat.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

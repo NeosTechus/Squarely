@@ -92,8 +92,8 @@ export default function Customers() {
         }}
         className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
       >
-        <div className="flex items-end gap-3">
-          <label className="flex-1 text-sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[10rem] flex-1 text-sm">
             <span className="text-slate-700">Name</span>
             <input
               value={name}
@@ -102,7 +102,7 @@ export default function Customers() {
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
             />
           </label>
-          <label className="flex-1 text-sm">
+          <label className="min-w-[10rem] flex-1 text-sm">
             <span className="text-slate-700">Email</span>
             <input
               value={email}
@@ -113,8 +113,8 @@ export default function Customers() {
             />
           </label>
         </div>
-        <div className="flex items-end gap-3">
-          <label className="flex-1 text-sm">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[10rem] flex-1 text-sm">
             <span className="text-slate-700">Phone</span>
             <input
               value={phone}
@@ -124,7 +124,7 @@ export default function Customers() {
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
             />
           </label>
-          <label className="flex-1 text-sm">
+          <label className="min-w-[10rem] flex-1 text-sm">
             <span className="text-slate-700">Notes</span>
             <input
               value={notes}

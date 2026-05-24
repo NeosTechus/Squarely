@@ -46,7 +46,7 @@ export default function PlatformHome() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         {/* Stat cards — mirrors web */}
         {isLoading ? (

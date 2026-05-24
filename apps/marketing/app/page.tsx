@@ -26,7 +26,7 @@ import CountUp from "@/components/CountUp";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen overflow-x-hidden bg-white">
       <SiteNav />
 
       {/* ───────── HERO ───────── */}
@@ -47,7 +47,7 @@ export default function Home() {
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">
             Point of Sale · Kiosk · Kitchen · Back office
           </p>
-          <h1 className="mx-auto mt-7 max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl">
+          <h1 className="mx-auto mt-7 max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-7xl">
             Run your entire business
             <br />
             <span className="animate-gradient bg-gradient-to-r from-brand-300 via-brand-400 to-brand-200 bg-[length:200%_auto] bg-clip-text text-transparent">

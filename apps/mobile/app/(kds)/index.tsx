@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { View, Text, FlatList, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
@@ -44,6 +44,10 @@ function age(iso: string) {
 export default function Kds() {
   const qc = useQueryClient();
   const { data: merchantId } = useActiveMerchant();
+
+  // Tablet shows a 3-up board; phones get 1 column so cards aren't cramped.
+  const { width } = useWindowDimensions();
+  const columns = width >= 1000 ? 3 : width >= 640 ? 2 : 1;
 
   const { data: orders = [], isLoading } = useQuery({
     enabled: Boolean(merchantId),
@@ -101,10 +105,11 @@ export default function Kds() {
 
         <FlatList
           className="mt-4"
+          key={`kds-${columns}`}
           data={orders}
-          numColumns={3}
+          numColumns={columns}
           keyExtractor={(o) => o.id}
-          columnWrapperStyle={{ gap: 12 }}
+          columnWrapperStyle={columns > 1 ? { gap: 12 } : undefined}
           contentContainerStyle={{ gap: 12 }}
           ListEmptyComponent={
             !isLoading ? (

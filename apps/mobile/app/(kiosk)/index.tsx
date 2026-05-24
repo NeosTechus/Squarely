@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView } from "react-native";
+import { View, Text, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
@@ -31,6 +31,10 @@ export default function Kiosk() {
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
   const kiosk = useKioskConfig();
+
+  // Kiosk usually runs on a tablet, but support narrow screens too.
+  const { width } = useWindowDimensions();
+  const wide = width >= 700;
 
   const { data: items = [], isLoading } = useQuery({
     enabled: Boolean(merchantId) && step === "menu",
@@ -198,13 +202,14 @@ export default function Kiosk() {
   // ---- MENU ----
   return (
     <ScreenContainer>
-      <View className="flex-1 flex-row">
+      <View className={`flex-1 ${wide ? "flex-row" : "flex-col"}`}>
         <View className="flex-1 p-4">
           <Text className="mb-3 text-2xl font-bold">Menu</Text>
           {isLoading ? <ActivityIndicator className="mt-8" /> : null}
           <FlatList
             data={items}
             numColumns={2}
+            key="kiosk-grid-2"
             columnWrapperStyle={{ gap: 12 }}
             contentContainerStyle={{ gap: 12 }}
             ListEmptyComponent={
@@ -230,10 +235,16 @@ export default function Kiosk() {
             )}
           />
         </View>
-        <View className="w-96 border-l border-slate-200 bg-white p-4">
+        <View
+          className={
+            wide
+              ? "w-96 border-l border-slate-200 bg-white p-4"
+              : "border-t border-slate-200 bg-white p-4"
+          }
+        >
           <Text className="text-2xl font-bold">Your order</Text>
           <FlatList
-            className="mt-3 flex-1"
+            className={wide ? "mt-3 flex-1" : "mt-3 max-h-48"}
             data={lines}
             keyExtractor={(l) => l.item_id}
             ListEmptyComponent={

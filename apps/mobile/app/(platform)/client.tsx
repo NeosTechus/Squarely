@@ -135,7 +135,7 @@ export default function ClientDetail() {
 
   if (isLoading || !m) {
     return (
-      <ScreenContainer>
+      <ScreenContainer edges={["bottom"]}>
         <ActivityIndicator className="mt-10" />
       </ScreenContainer>
     );
@@ -144,7 +144,7 @@ export default function ClientDetail() {
   const renew = m.sub?.current_period_end ? new Date(m.sub.current_period_end).toLocaleDateString() : "—";
 
   return (
-    <ScreenContainer>
+    <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
         {/* header */}
         <View>

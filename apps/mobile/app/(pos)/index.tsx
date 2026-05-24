@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal } from "react-native";
+import { View, Text, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getGatewayPlugin } from "@squarely/payments";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
@@ -27,6 +27,10 @@ interface MenuItem {
 export default function Pos() {
   const cart = useCart();
   const fmt = (c: number) => `$${(c / 100).toFixed(2)}`;
+
+  // Tablet / landscape → side-by-side; narrow phone → stacked.
+  const { width } = useWindowDimensions();
+  const wide = width >= 700;
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
@@ -147,7 +151,7 @@ export default function Pos() {
 
   return (
     <ScreenContainer>
-      <View className="flex-1 flex-row">
+      <View className={`flex-1 ${wide ? "flex-row" : "flex-col"}`}>
         <View className="flex-1 p-4">
           {/* top analytics + orders strip */}
           <View className="mb-3 flex-row items-center gap-2">
@@ -170,8 +174,9 @@ export default function Pos() {
             </Text>
           ) : null}
           <FlatList
+            key={wide ? "grid-4" : "grid-3"}
             data={items}
-            numColumns={4}
+            numColumns={wide ? 4 : 3}
             className="flex-1"
             columnWrapperStyle={{ gap: 8 }}
             contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
@@ -210,10 +215,16 @@ export default function Pos() {
             )}
           />
         </View>
-        <View className="w-80 border-l border-slate-200 bg-white p-4">
+        <View
+          className={
+            wide
+              ? "w-80 border-l border-slate-200 bg-white p-4"
+              : "border-t border-slate-200 bg-white p-4"
+          }
+        >
           <Text className="text-xl font-bold">Cart</Text>
           <FlatList
-            className="mt-3 flex-1"
+            className={wide ? "mt-3 flex-1" : "mt-3 max-h-44"}
             data={cart.lines}
             keyExtractor={(l) => l.id}
             renderItem={({ item }) => (
