@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl } from "react-native";
-import { useQuery } from "@tanstack/react-query";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, RefreshControl, Alert } from "react-native";
+import { router } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { useBootMode } from "@/store/boot";
 import { OrderRow } from "@/components/OrderRow";
 
 const fmt = (c: number) => `$${(c / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -40,6 +42,29 @@ function rangeStart(p: Period): Date {
 export default function Admin() {
   const { data: merchantId } = useActiveMerchant();
   const [period, setPeriod] = useState<Period>("today");
+  const qc = useQueryClient();
+  const clearMode = useBootMode((s) => s.clear);
+
+  const switchMode = () => {
+    clearMode();
+    router.replace("/(boot)");
+  };
+
+  const signOut = () => {
+    Alert.alert("Sign out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign out",
+        style: "destructive",
+        onPress: async () => {
+          clearMode();
+          await supabase.auth.signOut();
+          qc.clear();
+          router.replace("/(auth)/login");
+        },
+      },
+    ]);
+  };
 
   const { data: orders = [], isLoading, refetch, isRefetching } = useQuery({
     enabled: Boolean(merchantId),
@@ -113,8 +138,20 @@ export default function Admin() {
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
       >
-        <Text className="text-3xl font-bold tracking-tight">Analytics</Text>
-        <Text className="mt-1 text-slate-500">Your store at a glance</Text>
+        <View className="flex-row items-start justify-between">
+          <View>
+            <Text className="text-3xl font-bold tracking-tight">Analytics</Text>
+            <Text className="mt-1 text-slate-500">Your store at a glance</Text>
+          </View>
+          <View className="flex-row gap-2">
+            <Pressable onPress={switchMode} className="rounded-lg border border-slate-200 px-3 py-2 active:bg-slate-50">
+              <Text className="text-sm text-slate-600">Switch</Text>
+            </Pressable>
+            <Pressable onPress={signOut} className="rounded-lg border border-red-200 px-3 py-2 active:bg-red-50">
+              <Text className="text-sm font-medium text-red-600">Sign out</Text>
+            </Pressable>
+          </View>
+        </View>
 
         {/* period toggle */}
         <View className="mt-4 flex-row gap-2">
