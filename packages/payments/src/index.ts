@@ -1,3 +1,10 @@
 export * from "./provider";
 export * from "./registry";
+export * from "./factory";
 export * as Valor from "./valor";
+export { SquareProvider } from "./square";
+export { StripeProvider } from "./stripe";
+export { AdyenProvider } from "./adyen";
+export { CloverProvider } from "./clover";
+export { AuthorizeNetProvider } from "./authorizenet";
+export { PayPalProvider } from "./paypal";

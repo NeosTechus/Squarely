@@ -7,6 +7,7 @@ import { createBrowserClient } from "@squarely/db/browser";
 import { setImpersonatedMerchant } from "@/lib/impersonation";
 import { setSuspended, changePlan, resetOwnerPassword, logImpersonation } from "./actions";
 import { GatewayEditor } from "@/components/GatewayEditor";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
 const FEATURES: { key: FeatureKey; label: string }[] = [
@@ -286,6 +287,11 @@ function ClientDetail({
         ) : null}
         <span className="text-sm text-slate-400">/{m.slug}</span>
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">Onboarding checklist</h3>
+        <OnboardingChecklist merchantId={m.id} />
+      </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h3 className="mb-3 text-sm font-semibold text-slate-700">Account</h3>

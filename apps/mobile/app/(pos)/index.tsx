@@ -6,6 +6,7 @@ import { useCart } from "@/store/cart";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
+import { chargeOnTerminal } from "@/lib/terminalCharge";
 import { OrderRow } from "@/components/OrderRow";
 
 interface MenuItem {
@@ -144,52 +145,66 @@ export default function Pos() {
         }
       }
       const paymentMethod = payType; // "cash" | "card" | "split"
+      const isCard = payType === "card";
 
-      // Settling an existing open ("pay at counter") order — just mark it paid.
+      // Resolve the order we're charging: the open one we're settling, or a new sale.
+      let orderId: string;
+      let orderNumber: number;
       if (settling) {
+        orderId = settling.id;
+        orderNumber = settling.number;
+      } else {
+        const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", { p_merchant_id: merchantId });
+        if (numErr) throw numErr;
+        const { data: order, error: orderErr } = await (supabase as any)
+          .from("orders")
+          .insert({
+            merchant_id: merchantId,
+            number: num as number,
+            source: "pos",
+            order_type: "take_out",
+            status: "completed",
+            subtotal_cents: subtotal,
+            total_cents: subtotal,
+            payment_method: paymentMethod,
+            payment_status: isCard ? "unpaid" : "paid", // card confirmed after the reader
+          })
+          .select("id, number")
+          .single();
+        if (orderErr) throw orderErr;
+        orderId = (order as any).id;
+        orderNumber = (order as any).number;
+        const { error: itemsErr } = await (supabase as any).from("order_items").insert(
+          lines.map((l) => ({ order_id: orderId, item_id: l.item_id, name_snapshot: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity })),
+        );
+        if (itemsErr) throw itemsErr;
+      }
+
+      if (isCard) {
+        // Try the merchant's card reader; fall back to recording if none configured.
+        const { result, error } = await chargeOnTerminal({
+          merchantId,
+          orderId,
+          amountCents: subtotal,
+          onPrompt: () => Alert.alert("Tap card", "Ask the customer to tap or insert their card on the reader."),
+        });
+        if (result === "paid") {
+          await (supabase as any).from("orders").update({ payment_method: "card", status: "completed" }).eq("id", orderId);
+        } else if (result === "no_gateway") {
+          // No reader configured — record the card sale (demo behavior).
+          await (supabase as any).from("orders").update({ payment_method: "card", payment_status: "paid", status: "completed" }).eq("id", orderId);
+        } else {
+          throw new Error(error ?? "Card payment failed.");
+        }
+      } else if (settling) {
         const { error } = await (supabase as any)
           .from("orders")
           .update({ payment_method: paymentMethod, payment_status: "paid", status: "completed" })
           .eq("id", settling.id);
         if (error) throw error;
-        return { number: settling.number };
       }
 
-      // Brand-new POS sale.
-      const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", {
-        p_merchant_id: merchantId,
-      });
-      if (numErr) throw numErr;
-
-      const { data: order, error: orderErr } = await (supabase as any)
-        .from("orders")
-        .insert({
-          merchant_id: merchantId,
-          number: num as number,
-          source: "pos",
-          order_type: "take_out",
-          status: "completed",
-          subtotal_cents: subtotal,
-          total_cents: subtotal,
-          payment_method: paymentMethod,
-          payment_status: "paid",
-        })
-        .select("id, number")
-        .single();
-      if (orderErr) throw orderErr;
-      const created = order as { id: string; number: number };
-
-      const { error: itemsErr } = await (supabase as any).from("order_items").insert(
-        lines.map((l) => ({
-          order_id: created.id,
-          item_id: l.item_id,
-          name_snapshot: l.name,
-          unit_price_cents: l.unit_price_cents,
-          quantity: l.quantity,
-        })),
-      );
-      if (itemsErr) throw itemsErr;
-      return { number: created.number };
+      return { number: orderNumber };
     },
     onSuccess: (res) => {
       Alert.alert("Payment complete", `Order #${res.number} paid.`);
