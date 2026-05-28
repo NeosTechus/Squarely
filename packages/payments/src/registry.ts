@@ -58,21 +58,22 @@ export const GATEWAY_CATALOG: GatewayPlugin[] = [
   {
     id: "stripe",
     label: "Stripe",
-    description: "Stripe Terminal / online card payments.",
+    description: "Stripe Terminal card readers (server-driven).",
     manual: false,
     configFields: [
-      { key: "publishableKey", label: "Publishable key", placeholder: "pk_live_…" },
       { key: "secretKey", label: "Secret key", placeholder: "sk_live_…", secret: true },
+      { key: "readerId", label: "Terminal reader id", placeholder: "tmr_…" },
     ],
   },
   {
     id: "square",
     label: "Square",
-    description: "Square readers and the Square payments API.",
+    description: "Square Terminal devices via the Terminal API.",
     manual: false,
     configFields: [
       { key: "accessToken", label: "Access token", secret: true },
       { key: "locationId", label: "Square location id" },
+      { key: "deviceId", label: "Terminal device id", placeholder: "device_…" },
       { key: "environment", label: "Environment (sandbox / production)", placeholder: "production", optional: true },
     ],
   },
@@ -95,6 +96,8 @@ export const GATEWAY_CATALOG: GatewayPlugin[] = [
     configFields: [
       { key: "apiKey", label: "API key", secret: true },
       { key: "merchantAccount", label: "Merchant account" },
+      { key: "poiId", label: "Terminal POI id", placeholder: "V400m-…" },
+      { key: "environment", label: "Environment (test / live)", placeholder: "live", optional: true },
       { key: "hmacKey", label: "Webhook HMAC key", secret: true, optional: true },
     ],
   },
@@ -116,6 +119,8 @@ export const GATEWAY_CATALOG: GatewayPlugin[] = [
     configFields: [
       { key: "merchantId", label: "Clover merchant ID" },
       { key: "apiToken", label: "API token", secret: true },
+      { key: "deviceId", label: "Device id", placeholder: "device serial", optional: true },
+      { key: "environment", label: "Environment (sandbox / production)", placeholder: "production", optional: true },
     ],
   },
 ];
