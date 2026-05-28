@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, useWindowDimensions } from "react-native";
+import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, ScrollView, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
 import { useCart } from "@/store/cart";
@@ -7,7 +7,9 @@ import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { chargeOnTerminal } from "@/lib/terminalCharge";
+import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
+import { Receipt, type ReceiptData } from "@/components/Receipt";
 
 interface MenuItem {
   id: string;
@@ -26,9 +28,32 @@ export default function Pos() {
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
+  const tax = useMerchantTax();
+
+  // Store name for the printed receipt header.
+  const { data: storeName = "Receipt" } = useQuery({
+    enabled: Boolean(merchantId),
+    queryKey: ["merchant-name", merchantId],
+    queryFn: async (): Promise<string> => {
+      const { data, error } = await (supabase as any)
+        .from("merchants")
+        .select("name")
+        .eq("id", merchantId)
+        .single();
+      if (error) throw error;
+      return (data?.name as string) ?? "Receipt";
+    },
+  });
 
   const [showOrders, setShowOrders] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
+
+  // Tip on a new sale: preset % of subtotal or a custom dollar amount.
+  const [tipCents, setTipCents] = useState(0);
+  const [customTip, setCustomTip] = useState("");
+
+  // Receipt shown after a completed charge (snapshotted before the cart clears).
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   // Payment: cash / card / split. For split, the cashier enters the cash part.
   type PayType = "cash" | "card" | "split";
@@ -137,10 +162,16 @@ export default function Pos() {
       if (lines.length === 0) throw new Error("Cart is empty.");
       const subtotal = cart.subtotalCents();
 
+      // Tax + tip apply to a new sale. When settling an existing counter order we
+      // just collect what's already owed (no recompute), so tax/tip are 0 here.
+      const taxAmt = settling ? 0 : tax.taxCents(subtotal);
+      const tipAmt = settling ? 0 : tipCents;
+      const grandTotal = subtotal + taxAmt + tipAmt;
+
       // Recorded payment (no real processor yet). payment_method = cash | card | split.
       if (payType === "split") {
         const cashPart = Math.round((parseFloat(splitCash) || 0) * 100);
-        if (cashPart <= 0 || cashPart >= subtotal) {
+        if (cashPart <= 0 || cashPart >= grandTotal) {
           throw new Error("Enter the cash portion (less than the total); the rest goes on card.");
         }
       }
@@ -165,7 +196,9 @@ export default function Pos() {
             order_type: "take_out",
             status: "completed",
             subtotal_cents: subtotal,
-            total_cents: subtotal,
+            tax_cents: taxAmt,
+            tip_cents: tipAmt,
+            total_cents: grandTotal,
             payment_method: paymentMethod,
             payment_status: isCard ? "unpaid" : "paid", // card confirmed after the reader
           })
@@ -185,7 +218,7 @@ export default function Pos() {
         const { result, error } = await chargeOnTerminal({
           merchantId,
           orderId,
-          amountCents: subtotal,
+          amountCents: grandTotal,
           onPrompt: () => Alert.alert("Tap card", "Ask the customer to tap or insert their card on the reader."),
         });
         if (result === "paid") {
@@ -204,19 +237,49 @@ export default function Pos() {
         if (error) throw error;
       }
 
-      return { number: orderNumber };
+      // Snapshot the receipt now, before the cart is cleared in onSuccess.
+      const receiptData: ReceiptData = {
+        storeName,
+        orderNumber,
+        createdAt: new Date().toISOString(),
+        lines: lines.map((l) => ({ name: l.name, qty: l.quantity, unitCents: l.unit_price_cents })),
+        subtotalCents: subtotal,
+        taxCents: taxAmt,
+        tipCents: tipAmt,
+        totalCents: grandTotal,
+        paymentLabel: `Paid · ${paymentMethod}`,
+      };
+
+      return { number: orderNumber, receipt: receiptData };
     },
     onSuccess: (res) => {
-      Alert.alert("Payment complete", `Order #${res.number} paid.`);
+      setReceipt(res.receipt);
       cart.clear();
       setSettling(null);
       setSplitCash("");
       setPayType("cash");
+      setTipCents(0);
+      setCustomTip("");
       refetchOrders();
       refetchOpen();
     },
     onError: (e) => Alert.alert("Payment failed", (e as Error).message),
   });
+
+  // Cart totals for the footer. Settling collects what's owed (no tax/tip recompute).
+  const subtotal = cart.subtotalCents();
+  const taxAmt = settling ? 0 : tax.taxCents(subtotal);
+  const tipAmt = settling ? 0 : tipCents;
+  const grandTotal = subtotal + taxAmt + tipAmt;
+
+  const setPresetTip = (pct: number) => {
+    setTipCents(Math.round((subtotal * pct) / 100));
+    setCustomTip("");
+  };
+  const onCustomTip = (text: string) => {
+    setCustomTip(text);
+    setTipCents(Math.max(0, Math.round((parseFloat(text) || 0) * 100)));
+  };
 
   return (
     <ScreenContainer>
@@ -332,9 +395,62 @@ export default function Pos() {
             }
           />
           <View className="border-t border-slate-200 pt-3">
+            {/* tip — new sales only (settling collects the counter order as-is) */}
+            {!settling ? (
+              <View className="mb-3">
+                <Text className="mb-2 text-sm font-semibold text-slate-500">Tip</Text>
+                <View className="flex-row gap-2">
+                  {([
+                    { label: "No tip", pct: 0 },
+                    { label: "10%", pct: 10 },
+                    { label: "15%", pct: 15 },
+                    { label: "20%", pct: 20 },
+                  ] as const).map((p) => {
+                    const sel = !customTip && tipCents === Math.round((subtotal * p.pct) / 100);
+                    return (
+                      <Pressable
+                        key={p.label}
+                        onPress={() => setPresetTip(p.pct)}
+                        className="flex-1 items-center rounded-xl border py-2"
+                        style={{ backgroundColor: sel ? brand : "#ffffff", borderColor: sel ? brand : "#e2e8f0" }}
+                      >
+                        <Text className="text-xs font-semibold" style={{ color: sel ? "#ffffff" : "#475569" }}>{p.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View className="mt-2 flex-row items-center gap-2">
+                  <Text className="text-sm text-slate-500">Custom $</Text>
+                  <TextInput
+                    value={customTip}
+                    onChangeText={onCustomTip}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </View>
+              </View>
+            ) : null}
+            {/* totals breakdown */}
             <View className="flex-row justify-between">
-              <Text className="font-semibold">Subtotal</Text>
-              <Text className="font-semibold">{fmt(cart.subtotalCents())}</Text>
+              <Text className="text-sm text-slate-500">Subtotal</Text>
+              <Text className="text-sm text-slate-600">{fmt(subtotal)}</Text>
+            </View>
+            {taxAmt > 0 ? (
+              <View className="mt-1 flex-row justify-between">
+                <Text className="text-sm text-slate-500">Tax{tax.ratePct ? ` (${tax.ratePct}%)` : ""}</Text>
+                <Text className="text-sm text-slate-600">{fmt(taxAmt)}</Text>
+              </View>
+            ) : null}
+            {tipAmt > 0 ? (
+              <View className="mt-1 flex-row justify-between">
+                <Text className="text-sm text-slate-500">Tip</Text>
+                <Text className="text-sm text-slate-600">{fmt(tipAmt)}</Text>
+              </View>
+            ) : null}
+            <View className="mt-1 flex-row justify-between border-t border-slate-200 pt-2">
+              <Text className="text-base font-bold">Total</Text>
+              <Text className="text-base font-bold">{fmt(grandTotal)}</Text>
             </View>
             {/* payment type: cash / card / split */}
             <View className="mt-3">
@@ -367,13 +483,13 @@ export default function Pos() {
                     />
                   </View>
                   <Text className="mt-1 text-xs text-slate-400">
-                    Card: {fmt(Math.max(0, cart.subtotalCents() - Math.round((parseFloat(splitCash) || 0) * 100)))}
+                    Card: {fmt(Math.max(0, grandTotal - Math.round((parseFloat(splitCash) || 0) * 100)))}
                   </Text>
                 </View>
               ) : null}
             </View>
             <Button
-              label={charge.isPending ? "Processing…" : `${settling ? "Collect" : "Charge"} ${fmt(cart.subtotalCents())}`}
+              label={charge.isPending ? "Processing…" : `${settling ? "Collect" : "Charge"} ${fmt(grandTotal)}`}
               size="lg"
               className="mt-4"
               style={{ backgroundColor: brand }}
@@ -441,6 +557,29 @@ export default function Pos() {
             renderItem={({ item }) => <OrderRow order={item} />}
             ListEmptyComponent={<Text className="mt-8 text-center text-slate-400">No orders yet.</Text>}
           />
+        </View>
+      </Modal>
+
+      {/* Receipt modal — shown after a successful charge */}
+      <Modal visible={receipt !== null} animationType="slide" transparent onRequestClose={() => setReceipt(null)}>
+        <Pressable onPress={() => setReceipt(null)} className="flex-1 bg-slate-900/40" />
+        <View className="absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-3xl bg-white">
+          <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
+            <Text className="text-lg font-bold">Receipt</Text>
+            <Pressable onPress={() => setReceipt(null)} hitSlop={8}>
+              <Text className="text-sm font-medium text-brand-600">Close</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            {receipt ? <Receipt data={receipt} /> : null}
+            <Button
+              label="New sale"
+              size="lg"
+              className="mt-4"
+              style={{ backgroundColor: brand }}
+              onPress={() => setReceipt(null)}
+            />
+          </ScrollView>
         </View>
       </Modal>
     </ScreenContainer>
