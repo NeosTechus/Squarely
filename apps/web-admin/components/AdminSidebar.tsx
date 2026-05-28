@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, ScrollText, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, ScrollText, Activity, Menu, X } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/admin/clients", label: "Clients", icon: Users },
+  { href: "/admin/observability", label: "Observability", icon: Activity },
   { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/admin/revenue", label: "Revenue & health", icon: DollarSign },
   { href: "/admin/plans", label: "Plans", icon: Package },

@@ -48,6 +48,19 @@ export default function PlatformHome() {
   return (
     <ScreenContainer edges={["bottom"]}>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+        {/* Observability tile — live platform health */}
+        <Pressable
+          onPress={() => router.push("/(platform)/observability" as never)}
+          className="flex-row items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 active:bg-slate-50"
+        >
+          <Text className="text-2xl">📡</Text>
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-slate-900">Observability</Text>
+            <Text className="text-xs text-slate-500">Live platform health: orders, pipeline, payments.</Text>
+          </View>
+          <Text className="text-slate-400">→</Text>
+        </Pressable>
+
         {/* Stat cards — mirrors web */}
         {isLoading ? (
           <ActivityIndicator className="mt-8" />

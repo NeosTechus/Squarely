@@ -5,6 +5,7 @@ import { PlatformDrawerProvider, useDrawerStore } from "@/components/PlatformDra
 
 const TITLES: Record<string, string> = {
   index: "Overview",
+  observability: "Observability",
   clients: "Clients",
   analytics: "Analytics",
   revenue: "Revenue & health",

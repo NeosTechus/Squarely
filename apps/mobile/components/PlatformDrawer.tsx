@@ -22,6 +22,7 @@ export const useDrawerStore = create<DrawerState>((set) => ({
 
 const NAV = [
   { key: "index", label: "Overview", emoji: "📊", href: "/(platform)" },
+  { key: "observability", label: "Observability", emoji: "📡", href: "/(platform)/observability" },
   { key: "clients", label: "Clients", emoji: "🏪", href: "/(platform)/clients" },
   { key: "analytics", label: "Analytics", emoji: "📈", href: "/(platform)/analytics" },
   { key: "revenue", label: "Revenue & health", emoji: "💰", href: "/(platform)/revenue" },
