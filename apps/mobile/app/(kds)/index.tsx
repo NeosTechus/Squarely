@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, FlatList, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, ScreenContainer } from "@squarely/ui-mobile";
@@ -34,12 +34,38 @@ const STATUS_BG: Record<string, string> = {
   ready: "bg-emerald-50 border-emerald-200",
 };
 
-function age(iso: string) {
-  const secs = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+function age(iso: string, nowMs: number) {
+  const secs = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000));
   const m = Math.floor(secs / 60);
   const s = secs % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+// Whole minutes since the order was created, used for the age badge + SLA escalation.
+function ageMinutes(iso: string, nowMs: number) {
+  return Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 60000));
+}
+
+const SLA_WARN_MIN = 5; // amber threshold
+const SLA_LATE_MIN = 10; // red threshold
+
+// Age-based escalation: <5m green, 5-10m amber, >10m red.
+function ageTier(minutes: number) {
+  if (minutes > SLA_LATE_MIN) return "late" as const;
+  if (minutes >= SLA_WARN_MIN) return "warn" as const;
+  return "ok" as const;
+}
+
+const AGE_BORDER: Record<"ok" | "warn" | "late", string> = {
+  ok: "border-l-4 border-l-emerald-400",
+  warn: "border-l-4 border-l-amber-400",
+  late: "border-l-4 border-l-red-500",
+};
+const AGE_BADGE: Record<"ok" | "warn" | "late", string> = {
+  ok: "bg-emerald-100 text-emerald-700",
+  warn: "bg-amber-100 text-amber-800",
+  late: "bg-red-100 text-red-700",
+};
 
 export default function Kds() {
   const qc = useQueryClient();
@@ -48,6 +74,13 @@ export default function Kds() {
   // Tablet shows a 3-up board; phones get 1 column so cards aren't cramped.
   const { width } = useWindowDimensions();
   const columns = width >= 1000 ? 3 : width >= 640 ? 2 : 1;
+
+  // Tick every 30s so ticket ages escalate live even when no new data arrives.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const { data: orders = [], isLoading } = useQuery({
     enabled: Boolean(merchantId),
@@ -64,6 +97,12 @@ export default function Kds() {
       return (data ?? []) as KdsOrder[];
     },
   });
+
+  // How many tickets have breached the 10-min SLA (drives the header banner).
+  const lateCount = useMemo(
+    () => orders.filter((o) => ageMinutes(o.created_at, now) > SLA_LATE_MIN).length,
+    [orders, now],
+  );
 
   // Realtime: new orders / status changes push instantly to the board.
   useEffect(() => {
@@ -101,6 +140,14 @@ export default function Kds() {
           <Text className="text-sm text-slate-500">{orders.length} active</Text>
         </View>
 
+        {lateCount > 0 ? (
+          <View className="mt-3 flex-row items-center rounded-xl border border-red-200 bg-red-50 px-4 py-2">
+            <Text className="text-sm font-semibold text-red-700">
+              ⚠ {lateCount} {lateCount === 1 ? "ticket" : "tickets"} over {SLA_LATE_MIN} min
+            </Text>
+          </View>
+        ) : null}
+
         {isLoading ? <ActivityIndicator className="mt-8" /> : null}
 
         <FlatList
@@ -118,13 +165,19 @@ export default function Kds() {
               </Text>
             ) : null
           }
-          renderItem={({ item }) => (
-            <Card className={`flex-1 border ${STATUS_BG[item.status] ?? ""}`}>
+          renderItem={({ item }) => {
+            const mins = ageMinutes(item.created_at, now);
+            const tier = ageTier(mins);
+            return (
+            <Card className={`flex-1 border ${STATUS_BG[item.status] ?? ""} ${AGE_BORDER[tier]}`}>
               <View className="flex-row items-center justify-between">
                 <Text className="text-3xl font-bold">#{item.number}</Text>
-                <View className="items-end">
+                <View className="items-end gap-1">
                   <Text className="text-xs uppercase text-slate-500">{item.source}</Text>
-                  <Text className="text-sm text-slate-500">{age(item.created_at)}</Text>
+                  <Text className={`rounded-full px-2 py-0.5 text-xs font-semibold ${AGE_BADGE[tier]}`}>
+                    {mins}m
+                  </Text>
+                  <Text className="text-xs text-slate-400">{age(item.created_at, now)}</Text>
                 </View>
               </View>
               <View className="mt-3 gap-1">
@@ -142,7 +195,8 @@ export default function Kds() {
                 <Text className="font-semibold text-white">{ACTION_LABEL[item.status]}</Text>
               </Pressable>
             </Card>
-          )}
+            );
+          }}
         />
       </View>
     </ScreenContainer>
