@@ -21,7 +21,10 @@ interface MerchantSettings {
   kiosk_image_url: string | null;
   kiosk_headline: string | null;
   kiosk_subtext: string | null;
+  tax_rate_bps: number | null;
 }
+
+const MAX_TAX_PERCENT = 30;
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -31,6 +34,7 @@ export default function Settings() {
   const [color, setColor] = useState("#4f46e5");
   const [headline, setHeadline] = useState("");
   const [subtext, setSubtext] = useState("");
+  const [taxPercent, setTaxPercent] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -40,7 +44,7 @@ export default function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("merchants")
-        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext")
+        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps")
         .eq("id", merchantId)
         .single();
       if (error) throw error;
@@ -53,6 +57,7 @@ export default function Settings() {
       setColor(merchant.brand_color || "#4f46e5");
       setHeadline(merchant.kiosk_headline ?? "");
       setSubtext(merchant.kiosk_subtext ?? "");
+      setTaxPercent(merchant.tax_rate_bps ? String(merchant.tax_rate_bps / 100) : "");
     }
   }, [merchant]);
 
@@ -74,6 +79,29 @@ export default function Settings() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["merchant-settings", merchantId] }),
   });
+
+  const saveTax = useMutation({
+    mutationFn: async (bps: number) => {
+      const { error } = await supabase.from("merchants").update({ tax_rate_bps: bps }).eq("id", merchantId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["merchant-settings", merchantId] }),
+  });
+
+  function submitTax() {
+    const trimmed = taxPercent.trim();
+    if (trimmed === "") {
+      saveTax.mutate(0);
+      return;
+    }
+    const pct = Number(trimmed);
+    if (!Number.isFinite(pct) || pct < 0 || pct > MAX_TAX_PERCENT) return;
+    saveTax.mutate(Math.round(pct * 100));
+  }
+
+  const taxValue = taxPercent.trim();
+  const taxNum = taxValue === "" ? 0 : Number(taxValue);
+  const taxInvalid = taxValue !== "" && (!Number.isFinite(taxNum) || taxNum < 0 || taxNum > MAX_TAX_PERCENT);
 
   async function uploadKioskImage(file: File) {
     if (!merchantId) return;
@@ -126,6 +154,44 @@ export default function Settings() {
             className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             style={{ backgroundColor: color }}>
             {saveColor.isPending ? "Saving…" : "Save color"}
+          </button>
+        </div>
+      </section>
+
+      {/* SALES TAX */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">Sales tax</h2>
+        <p className="mt-1 text-sm text-slate-600">Applied to POS and Kiosk orders at checkout.</p>
+        <div className="mt-4 space-y-3">
+          <label className="block text-sm">
+            <span className="text-slate-700">Sales tax rate (%)</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={MAX_TAX_PERCENT}
+              step="0.01"
+              value={taxPercent}
+              onChange={(e) => setTaxPercent(e.target.value)}
+              placeholder="0"
+              className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+          {taxInvalid ? (
+            <p className="text-sm text-red-600">Enter a number between 0 and {MAX_TAX_PERCENT}.</p>
+          ) : null}
+          {saveTax.isError ? (
+            <p className="text-sm text-red-600">Could not save. Please try again.</p>
+          ) : null}
+          {saveTax.isSuccess ? (
+            <p className="text-sm text-emerald-600">Saved.</p>
+          ) : null}
+          <button
+            onClick={submitTax}
+            disabled={saveTax.isPending || taxInvalid}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {saveTax.isPending ? "Saving…" : "Save tax rate"}
           </button>
         </div>
       </section>

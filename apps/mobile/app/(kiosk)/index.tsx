@@ -7,6 +7,8 @@ import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useKioskConfig } from "@/lib/useKioskConfig";
+import { useMerchantTax } from "@/lib/useMerchantTax";
+import { Receipt, type ReceiptData } from "@/components/Receipt";
 
 type PayChoice = "counter" | "card";
 
@@ -40,12 +42,22 @@ export default function Kiosk() {
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
+  const [tipCents, setTipCents] = useState(0);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
-  const [receipt, setReceipt] = useState<{ lines: Line[]; subtotal: number; orderType: OrderType; paid: boolean } | null>(null);
+  const [receipt, setReceipt] = useState<{
+    lines: Line[];
+    subtotal: number;
+    taxCents: number;
+    tipCents: number;
+    totalCents: number;
+    orderType: OrderType;
+    paid: boolean;
+  } | null>(null);
 
   const { data: merchantId } = useActiveMerchant();
   const brand = useMerchantTheme();
   const kiosk = useKioskConfig();
+  const { taxCents: computeTax } = useMerchantTax();
   const [payChoice, setPayChoice] = useState<PayChoice>("counter");
 
   const active = step === "menu" || step === "review";
@@ -116,6 +128,8 @@ export default function Kiosk() {
   }, [items, categories, lines]);
 
   const subtotal = lines.reduce((s, l) => s + l.price_cents * l.qty, 0);
+  const tax = computeTax(subtotal);
+  const grandTotal = subtotal + tax + tipCents;
   const cartCount = lines.reduce((s, l) => s + l.qty, 0);
   const qtyFor = (id: string) => lines.find((l) => l.item_id === id)?.qty ?? 0;
 
@@ -132,6 +146,7 @@ export default function Kiosk() {
 
   const resetAll = () => {
     setLines([]);
+    setTipCents(0);
     setSelectedCat(null);
     setSearch("");
     setStep("welcome");
@@ -173,7 +188,9 @@ export default function Kiosk() {
           order_type: orderType,
           status: "received",
           subtotal_cents: subtotal,
-          total_cents: subtotal,
+          tax_cents: tax,
+          tip_cents: tipCents,
+          total_cents: subtotal + tax + tipCents,
           payment_method: paid ? "card" : null,
           payment_status: paid ? "paid" : "unpaid",
         })
@@ -188,9 +205,18 @@ export default function Kiosk() {
       return created.number;
     },
     onSuccess: (number) => {
-      setReceipt({ lines, subtotal, orderType, paid: payChoice === "card" });
+      setReceipt({
+        lines,
+        subtotal,
+        taxCents: tax,
+        tipCents,
+        totalCents: subtotal + tax + tipCents,
+        orderType,
+        paid: payChoice === "card",
+      });
       setOrderNumber(number);
       setLines([]);
+      setTipCents(0);
       setSelectedCat(null);
       setStep("done");
     },
@@ -250,6 +276,18 @@ export default function Kiosk() {
 
   // ---- CONFIRMATION ----
   if (step === "done") {
+    const receiptData: ReceiptData | null = receipt
+      ? {
+          storeName,
+          orderNumber: orderNumber ?? 0,
+          lines: receipt.lines.map((l) => ({ name: l.name, qty: l.qty, unitCents: l.price_cents })),
+          subtotalCents: receipt.subtotal,
+          taxCents: receipt.taxCents,
+          tipCents: receipt.tipCents,
+          totalCents: receipt.totalCents,
+          paymentLabel: receipt.paid ? "Paid · card" : "Pay at counter",
+        }
+      : null;
     return (
       <ScreenContainer {...touchProps}>
         <Pressable className="flex-1 items-center justify-center bg-slate-50 active:opacity-95" onPress={resetAll}>
@@ -257,21 +295,11 @@ export default function Kiosk() {
             <Text className="text-6xl font-bold" style={{ color: brand }}>Thank you! 🎉</Text>
             <Text className="mt-3 text-4xl font-semibold text-slate-800">Order #{orderNumber}</Text>
             <Text className="mt-1 text-lg text-slate-500">{receipt?.orderType === "dine_in" ? "Dine in" : "To go"}</Text>
-            <View className="mt-8 w-full rounded-3xl border border-slate-200 bg-white p-6">
-              <Text className="mb-4 text-2xl font-bold text-slate-800">Your receipt</Text>
-              <ScrollView className="max-h-72" showsVerticalScrollIndicator>
-                {(receipt?.lines ?? []).map((l) => (
-                  <View key={l.item_id} className="mb-3 flex-row items-center justify-between">
-                    <Text className="flex-1 pr-3 text-xl text-slate-700">{l.qty} × {l.name}</Text>
-                    <Text className="text-xl font-medium text-slate-800">{fmt(l.price_cents * l.qty)}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-              <View className="mt-2 flex-row justify-between border-t-2 border-slate-200 pt-4">
-                <Text className="text-2xl font-bold text-slate-900">Total</Text>
-                <Text className="text-2xl font-bold" style={{ color: brand }}>{fmt(receipt?.subtotal ?? 0)}</Text>
+            {receiptData ? (
+              <View className="mt-8 w-full">
+                <Receipt data={receiptData} />
               </View>
-            </View>
+            ) : null}
             {receipt?.paid ? (
               <>
                 <Text className="mt-6 text-2xl font-semibold text-emerald-600">✓ Payment received</Text>
@@ -316,7 +344,7 @@ export default function Kiosk() {
         style={{ backgroundColor: cartCount ? brand : "#e2e8f0" }}
       >
         <Ionicons name="bag-handle-outline" size={18} color={cartCount ? "#ffffff" : "#94a3b8"} />
-        <Text className="font-bold" style={{ color: cartCount ? "#ffffff" : "#94a3b8" }}>{fmt(subtotal)}</Text>
+        <Text className="font-bold" style={{ color: cartCount ? "#ffffff" : "#94a3b8" }}>{fmt(grandTotal)}</Text>
       </Pressable>
     </View>
   );
@@ -397,10 +425,40 @@ export default function Kiosk() {
                 );
               })}
             </View>
-            <View className="flex-row justify-between"><Text className="text-xl font-bold">Total</Text><Text className="text-xl font-bold">{fmt(subtotal)}</Text></View>
+            {/* tip */}
+            <Text className="mb-2 text-sm font-semibold text-slate-500">Add a tip?</Text>
+            <View className="mb-3 flex-row gap-3">
+              {([
+                { label: "No tip", pct: 0 },
+                { label: "10%", pct: 10 },
+                { label: "15%", pct: 15 },
+                { label: "20%", pct: 20 },
+              ] as const).map((opt) => {
+                const amount = Math.round((subtotal * opt.pct) / 100);
+                const sel = tipCents === amount;
+                return (
+                  <Pressable
+                    key={opt.label}
+                    onPress={() => setTipCents(amount)}
+                    className="flex-1 items-center rounded-2xl border-2 py-3"
+                    style={{ borderColor: sel ? brand : "#e2e8f0", backgroundColor: sel ? `${brand}14` : "#ffffff" }}
+                  >
+                    <Text className="text-sm font-semibold" style={{ color: sel ? brand : "#475569" }}>{opt.label}</Text>
+                    {opt.pct > 0 ? (
+                      <Text className="mt-0.5 text-xs" style={{ color: sel ? brand : "#94a3b8" }}>{fmt(amount)}</Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+            {/* totals */}
+            <View className="flex-row justify-between"><Text className="text-base text-slate-500">Subtotal</Text><Text className="text-base text-slate-600">{fmt(subtotal)}</Text></View>
+            {tax > 0 ? <View className="mt-1 flex-row justify-between"><Text className="text-base text-slate-500">Tax</Text><Text className="text-base text-slate-600">{fmt(tax)}</Text></View> : null}
+            {tipCents > 0 ? <View className="mt-1 flex-row justify-between"><Text className="text-base text-slate-500">Tip</Text><Text className="text-base text-slate-600">{fmt(tipCents)}</Text></View> : null}
+            <View className="mt-2 flex-row justify-between border-t border-slate-200 pt-2"><Text className="text-xl font-bold">Total</Text><Text className="text-xl font-bold">{fmt(grandTotal)}</Text></View>
             <Pressable disabled={lines.length === 0 || placeOrder.isPending} onPress={() => placeOrder.mutate()} className="mt-4 items-center rounded-2xl py-4 active:opacity-90 disabled:opacity-40" style={{ backgroundColor: brand }}>
               <Text className="text-lg font-bold text-white">
-                {placeOrder.isPending ? "Placing…" : payChoice === "card" ? `Pay ${fmt(subtotal)}` : "Place order"}
+                {placeOrder.isPending ? "Placing…" : payChoice === "card" ? `Pay ${fmt(grandTotal)}` : "Place order"}
               </Text>
             </Pressable>
             {placeOrder.isError ? <Text className="mt-2 text-center text-red-600">{(placeOrder.error as Error).message}</Text> : null}
@@ -539,7 +597,7 @@ export default function Kiosk() {
           <View className="h-7 w-px bg-white/30" />
           <View className="items-end">
             <Text className="text-[9px] uppercase tracking-wide text-white/70">Total</Text>
-            <Text className="text-sm font-bold text-white">{fmt(subtotal)}</Text>
+            <Text className="text-sm font-bold text-white">{fmt(grandTotal)}</Text>
           </View>
           <View className="h-6 min-w-[24px] items-center justify-center rounded-full bg-white/25 px-1.5">
             <Text className="text-xs font-bold text-white">{cartCount}</Text>
