@@ -439,17 +439,15 @@ function ClientDetail({
 }
 
 function OpenDashboardButton({ merchantId }: { merchantId: string }) {
-  const router = useRouter();
-  const qc = useQueryClient();
   return (
     <button
       onClick={() => {
         // Fire-and-forget audit; never block navigation.
         void logImpersonation(merchantId).catch(() => {});
         setImpersonatedMerchant(merchantId);
-        qc.clear();
-        router.push("/dashboard");
-        router.refresh();
+        // Hard navigation guarantees a clean load that picks up the
+        // "view as" selection from localStorage (avoids stale client cache).
+        window.location.assign("/dashboard");
       }}
       className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700"
     >
