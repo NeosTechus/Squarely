@@ -37,16 +37,12 @@ const config: ExpoConfig = {
   android: {
     package: IS_DEV ? "com.squarely.app.dev" : "com.squarely.app",
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#ea580c" },
-    permissions: ["CAMERA", "BLUETOOTH_CONNECT", "BLUETOOTH_SCAN", "INTERNET", "ACCESS_NETWORK_STATE"],
+    permissions: ["INTERNET", "ACCESS_NETWORK_STATE"],
   },
   experiments: { typedRoutes: true },
   plugins: [
     "expo-router",
     "expo-secure-store",
-    [
-      "expo-camera",
-      { cameraPermission: "Squarely uses your camera to scan barcodes." },
-    ],
     [
       "expo-build-properties",
       {
