@@ -24,6 +24,7 @@ interface MerchantSettings {
   tax_rate_bps: number | null;
   region: string | null;
   city: string | null;
+  device_passcode: string | null;
 }
 
 const MAX_TAX_PERCENT = 30;
@@ -31,7 +32,7 @@ const MAX_TAX_PERCENT = 30;
 export default function Settings() {
   const qc = useQueryClient();
   const { data: merchantId } = useActiveMerchant();
-  const supabase = createBrowserClient() as unknown as { from: (t: string) => any; storage: any; rpc: (fn: string, args?: any) => Promise<{ data: any }> };
+  const supabase = createBrowserClient() as unknown as { from: (t: string) => any; storage: any; rpc: (fn: string, args?: any) => Promise<{ data: any; error: any }> };
 
   const [color, setColor] = useState("#4f46e5");
   const [headline, setHeadline] = useState("");
@@ -48,7 +49,7 @@ export default function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("merchants")
-        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps, region, city")
+        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps, region, city, device_passcode")
         .eq("id", merchantId)
         .single();
       if (error) throw error;
@@ -75,6 +76,16 @@ export default function Settings() {
       const { data } = await supabase.rpc("resolve_tax_bps", { p_state: merchant?.region ?? null, p_city: merchant?.city ?? null });
       return Number(data ?? 0);
     },
+  });
+
+  const [passcode, setPasscode] = useState("");
+  const savePasscode = useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await supabase.rpc("set_device_passcode", { p_merchant_id: merchantId, p_code: code });
+      if (error) throw new Error(error.message);
+      if (data && data !== "ok") throw new Error(data as string);
+    },
+    onSuccess: () => { setPasscode(""); qc.invalidateQueries({ queryKey: ["merchant-settings", merchantId] }); },
   });
 
   const saveLocation = useMutation({
@@ -261,6 +272,47 @@ export default function Settings() {
             {saveTax.isPending ? "Saving…" : "Save override"}
           </button>
         </div>
+      </section>
+
+      {/* DEVICE PASSCODE */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">Device passcode</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Require a passcode to enter POS or Kiosk mode on a device.{" "}
+          <span className="font-medium text-slate-700">{merchant?.device_passcode ? "Currently set." : "Not set."}</span>
+        </p>
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="block text-sm">
+            <span className="text-slate-700">Passcode (4–8 digits)</span>
+            <input
+              type="password"
+              inputMode="numeric"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+              placeholder="••••"
+              autoComplete="off"
+              className="mt-1 w-40 rounded-lg border border-slate-300 px-3 py-2 tracking-widest"
+            />
+          </label>
+          <button
+            onClick={() => savePasscode.mutate(passcode)}
+            disabled={savePasscode.isPending || passcode.length < 4}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {savePasscode.isPending ? "Saving…" : merchant?.device_passcode ? "Change passcode" : "Set passcode"}
+          </button>
+          {merchant?.device_passcode ? (
+            <button
+              onClick={() => savePasscode.mutate("")}
+              disabled={savePasscode.isPending}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+        {savePasscode.isError ? <p className="mt-2 text-sm text-red-600">{(savePasscode.error as Error).message}</p> : null}
+        {savePasscode.isSuccess ? <p className="mt-2 text-sm text-emerald-600">Saved.</p> : null}
       </section>
 
       {/* KIOSK LANDING */}
