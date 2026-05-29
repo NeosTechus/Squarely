@@ -60,29 +60,30 @@ export default function Signup() {
         Start your free Squarely store in minutes.
       </p>
 
-      <div className="mt-8">
-        <GoogleButton label="Sign up with Google" />
+      {/* Consent gates both sign-up methods below. */}
+      <label className="mt-8 flex items-start gap-2 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+        />
+        <span>
+          I agree to the{" "}
+          <a href={`${MARKETING_URL}/terms`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Terms of Service</a>{" "}
+          and{" "}
+          <a href={`${MARKETING_URL}/privacy`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Privacy Policy</a>.
+        </span>
+      </label>
+
+      <div className="mt-5">
+        <GoogleButton label="Sign up with Google" disabled={!agreed} />
       </div>
 
       <form className="mt-6 space-y-5" onSubmit={onSubmit}>
         <AuthField label="Business name" value={businessName} onChange={setBusinessName} required />
         <AuthField label="Email" type="email" value={email} onChange={setEmail} required autoComplete="email" />
         <AuthField label="Password" type="password" value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
-
-        <label className="flex items-start gap-2 text-xs text-slate-600">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
-          />
-          <span>
-            I agree to the{" "}
-            <a href={`${MARKETING_URL}/terms`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Terms of Service</a>{" "}
-            and{" "}
-            <a href={`${MARKETING_URL}/privacy`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Privacy Policy</a>.
-          </span>
-        </label>
 
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 

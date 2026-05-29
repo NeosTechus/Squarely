@@ -34,10 +34,18 @@ export default function Onboarding() {
   const locationMutation = useMutation({
     mutationFn: async () => {
       if (!merchantId) throw new Error("No active merchant.");
-      const { error: err } = await db()
+      const supa = db();
+      const { error: locErr } = await supa
         .from("locations")
         .insert({ merchant_id: merchantId, name, city, region });
-      if (err) throw new Error(err.message);
+      if (locErr) throw new Error(locErr.message);
+      // Mirror onto the merchant so sales tax resolves from state/city and the
+      // dashboard "Set your sales tax" step is satisfied automatically.
+      const { error: merErr } = await supa
+        .from("merchants")
+        .update({ region: region.trim().toUpperCase() || null, city: city.trim() || null })
+        .eq("id", merchantId);
+      if (merErr) throw new Error(merErr.message);
     },
     onSuccess: () => {
       setError(null);
