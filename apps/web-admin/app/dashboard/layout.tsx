@@ -6,6 +6,11 @@ import { HeaderInfo } from "@/components/HeaderInfo";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import AnnouncementBanner from "@/components/AnnouncementBanner";
 
+// These are per-user, auth-gated pages that read live data in the browser —
+// never prerender them. (Static prerender would run createBrowserClient at
+// build time, which throws without the NEXT_PUBLIC Supabase env present.)
+export const dynamic = "force-dynamic";
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-slate-50">

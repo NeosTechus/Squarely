@@ -45,12 +45,13 @@ function NavLinks({ onNavigate, collapsed }: { onNavigate?: () => void; collapse
 
 export function AdminSidebar() {
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default; only stays expanded if the user explicitly expanded it.
+  const [collapsed, setCollapsed] = useState(true);
 
-  // Restore the saved state on mount (kept out of initial render to avoid an
-  // SSR/client hydration mismatch).
+  // Restore the saved preference on mount (kept out of initial render to avoid
+  // an SSR/client hydration mismatch). Absent preference → collapsed.
   useEffect(() => {
-    setCollapsed(localStorage.getItem("admin-sidebar-collapsed") === "1");
+    setCollapsed(localStorage.getItem("admin-sidebar-collapsed") !== "0");
   }, []);
   const toggleCollapsed = () =>
     setCollapsed((c) => {
