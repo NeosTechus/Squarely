@@ -14,6 +14,12 @@ interface Item {
   image_url: string | null;
   pos_only: boolean;
   kiosk_only: boolean;
+  modifier_group_ids: string[] | null;
+}
+
+interface ModifierGroup {
+  id: string;
+  name: string;
 }
 
 type Visibility = "both" | "pos" | "kiosk";
@@ -39,6 +45,7 @@ export default function Items() {
   const [formError, setFormError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // The generated Database types are empty in this scaffold, so the typed
   // query builder resolves to `never`; use an untyped client for these calls.
@@ -53,11 +60,27 @@ export default function Items() {
     queryFn: async (): Promise<Item[]> => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, name, price_cents, active, image_url, pos_only, kiosk_only")
+        .select(
+          "id, name, price_cents, active, image_url, pos_only, kiosk_only, modifier_group_ids",
+        )
         .eq("merchant_id", merchantId)
         .order("display_order");
       if (error) throw error;
       return (data as Item[]) ?? [];
+    },
+  });
+
+  const { data: modifierGroups = [] } = useQuery({
+    enabled: Boolean(merchantId),
+    queryKey: ["modifier_groups", merchantId],
+    queryFn: async (): Promise<ModifierGroup[]> => {
+      const { data, error } = await supabase
+        .from("modifier_groups")
+        .select("id, name")
+        .eq("merchant_id", merchantId)
+        .order("display_order");
+      if (error) throw error;
+      return (data as ModifierGroup[]) ?? [];
     },
   });
 
@@ -107,6 +130,29 @@ export default function Items() {
     },
     onError: (e) => setRowError((e as Error).message),
   });
+
+  const setItemGroups = useMutation({
+    mutationFn: async ({ id, groupIds }: { id: string; groupIds: string[] }) => {
+      const { error } = await supabase
+        .from("items")
+        .update({ modifier_group_ids: groupIds })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setRowError(null);
+      qc.invalidateQueries({ queryKey: ["items", merchantId] });
+    },
+    onError: (e) => setRowError((e as Error).message),
+  });
+
+  function toggleItemGroup(it: Item, groupId: string) {
+    const current = it.modifier_group_ids ?? [];
+    const next = current.includes(groupId)
+      ? current.filter((g) => g !== groupId)
+      : [...current, groupId];
+    setItemGroups.mutate({ id: it.id, groupIds: next });
+  }
 
   async function uploadImage(itemId: string, file: File) {
     setRowError(null);
@@ -196,8 +242,11 @@ export default function Items() {
           <ul className="divide-y divide-slate-100">
             {items.map((it) => {
               const vis = visibilityOf(it);
+              const attachedCount = (it.modifier_group_ids ?? []).length;
+              const expanded = expandedId === it.id;
               return (
-                <li key={it.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 transition hover:bg-slate-50 sm:px-6">
+                <li key={it.id} className="px-4 py-3 transition hover:bg-slate-50 sm:px-6">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                   <label className="relative shrink-0 cursor-pointer">
                     {it.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -261,6 +310,19 @@ export default function Items() {
 
                   <button
                     type="button"
+                    onClick={() => setExpandedId(expanded ? null : it.id)}
+                    aria-expanded={expanded}
+                    className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                      attachedCount > 0
+                        ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Modifiers{attachedCount > 0 ? ` (${attachedCount})` : ""}
+                  </button>
+
+                  <button
+                    type="button"
                     aria-label={`Delete ${it.name}`}
                     disabled={deleteItem.isPending}
                     onClick={() => {
@@ -272,6 +334,43 @@ export default function Items() {
                   >
                     Delete
                   </button>
+                </div>
+
+                {expanded ? (
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="mb-2 text-xs font-medium text-slate-500">
+                      Attach modifier groups
+                    </p>
+                    {modifierGroups.length === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        No modifier groups yet — create them on the Modifiers page.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        {modifierGroups.map((mg) => {
+                          const checked = (it.modifier_group_ids ?? []).includes(
+                            mg.id,
+                          );
+                          return (
+                            <label
+                              key={mg.id}
+                              className="flex items-center gap-2 text-sm text-slate-700"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={setItemGroups.isPending}
+                                onChange={() => toggleItemGroup(it, mg.id)}
+                                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                              />
+                              {mg.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
                 </li>
               );
             })}

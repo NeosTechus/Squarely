@@ -6,7 +6,7 @@ export interface CartLine {
   name: string;
   unit_price_cents: number;
   quantity: number;
-  modifiers: Array<{ id: string; name: string; price_delta_cents: number }>;
+  modifiers: Array<{ id: string; name: string; price_delta_cents: number; group_id?: string }>;
   notes?: string;
 }
 

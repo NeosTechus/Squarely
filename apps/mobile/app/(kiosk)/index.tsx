@@ -9,6 +9,7 @@ import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useKioskConfig } from "@/lib/useKioskConfig";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
+import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
 
 type PayChoice = "counter" | "card";
 
@@ -27,11 +28,17 @@ interface Category {
   image_url: string | null;
 }
 interface Line {
+  lineId: string;
   item_id: string;
   name: string;
   price_cents: number;
   qty: number;
+  modifiers?: SelectedModifier[];
 }
+
+// Effective unit price = base price + sum of selected modifier deltas.
+const lineUnit = (l: Line) => l.price_cents + (l.modifiers?.reduce((s, m) => s + m.price_delta_cents, 0) ?? 0);
+const newLineId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 type OrderType = "dine_in" | "take_out";
 
 const fmt = (c: number) => `$${(c / 100).toFixed(2)}`;
@@ -59,6 +66,8 @@ export default function Kiosk() {
   const kiosk = useKioskConfig();
   const { taxCents: computeTax } = useMerchantTax();
   const [payChoice, setPayChoice] = useState<PayChoice>("counter");
+  const [modItem, setModItem] = useState<MenuItem | null>(null);
+  const [showMods, setShowMods] = useState(false);
 
   const active = step === "menu" || step === "review";
 
@@ -127,22 +136,48 @@ export default function Kiosk() {
     return pool.slice(0, 8);
   }, [items, categories, lines]);
 
-  const subtotal = lines.reduce((s, l) => s + l.price_cents * l.qty, 0);
+  const subtotal = lines.reduce((s, l) => s + lineUnit(l) * l.qty, 0);
   const tax = computeTax(subtotal);
   const grandTotal = subtotal + tax + tipCents;
   const cartCount = lines.reduce((s, l) => s + l.qty, 0);
-  const qtyFor = (id: string) => lines.find((l) => l.item_id === id)?.qty ?? 0;
+  // For the stepper on the menu cards we only reflect quantity of the plain
+  // (no-modifier) line for an item; modified lines are tracked separately.
+  const qtyFor = (id: string) => lines.find((l) => l.item_id === id && !l.modifiers?.length)?.qty ?? 0;
 
-  const add = (it: MenuItem) =>
+  // Append a brand-new modified line (qty 1) — different modifier combos never merge.
+  const addWithModifiers = (it: MenuItem, mods: SelectedModifier[]) =>
+    setLines((prev) => [
+      ...prev,
+      { lineId: newLineId(), item_id: it.id, name: it.name, price_cents: it.price_cents, qty: 1, modifiers: mods },
+    ]);
+
+  const add = (it: MenuItem) => {
+    // Items with modifier groups open the picker instead of adding directly.
+    if (it.modifier_group_ids?.length) {
+      setModItem(it);
+      setShowMods(true);
+      return;
+    }
     setLines((prev) => {
-      const found = prev.find((l) => l.item_id === it.id);
-      if (found) return prev.map((l) => (l.item_id === it.id ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { item_id: it.id, name: it.name, price_cents: it.price_cents, qty: 1 }];
+      const found = prev.find((l) => l.item_id === it.id && !l.modifiers?.length);
+      if (found) return prev.map((l) => (l === found ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { lineId: newLineId(), item_id: it.id, name: it.name, price_cents: it.price_cents, qty: 1 }];
     });
-  const dec = (id: string) =>
+  };
+  // Increment a specific line by lineId (used by the cart +/− steppers).
+  const incLine = (lineId: string) =>
+    setLines((prev) => prev.map((l) => (l.lineId === lineId ? { ...l, qty: l.qty + 1 } : l)));
+  const decLine = (lineId: string) =>
     setLines((prev) =>
-      prev.flatMap((l) => (l.item_id === id ? (l.qty > 1 ? [{ ...l, qty: l.qty - 1 }] : []) : [l])),
+      prev.flatMap((l) => (l.lineId === lineId ? (l.qty > 1 ? [{ ...l, qty: l.qty - 1 }] : []) : [l])),
     );
+  // Decrement the plain line for an item (used by the menu card stepper).
+  const dec = (id: string) =>
+    setLines((prev) => {
+      const found = prev.find((l) => l.item_id === id && !l.modifiers?.length);
+      if (!found) return prev;
+      return prev.flatMap((l) => (l === found ? (l.qty > 1 ? [{ ...l, qty: l.qty - 1 }] : []) : [l]));
+    });
 
   const resetAll = () => {
     setLines([]);
@@ -150,7 +185,23 @@ export default function Kiosk() {
     setSelectedCat(null);
     setSearch("");
     setStep("welcome");
+    setShowMods(false);
+    setModItem(null);
   };
+
+  // Shared modifier picker — rendered on the menu & review screens. Confirming
+  // appends a fresh line carrying the chosen modifiers.
+  const modSheet = (
+    <ModifierSheet
+      visible={showMods}
+      item={modItem}
+      brand={brand}
+      onClose={() => setShowMods(false)}
+      onConfirm={(mods) => {
+        if (modItem) addWithModifiers(modItem, mods);
+      }}
+    />
+  );
 
   // Auto-reset to the welcome screen (empty cart) after inactivity, so the
   // kiosk is ready for the next customer.
@@ -198,10 +249,35 @@ export default function Kiosk() {
         .single();
       if (orderErr) throw orderErr;
       const created = order as { id: string; number: number };
-      const { error: itemsErr } = await (supabase as any).from("order_items").insert(
-        lines.map((l) => ({ order_id: created.id, item_id: l.item_id, name_snapshot: l.name, unit_price_cents: l.price_cents, quantity: l.qty })),
-      );
-      if (itemsErr) throw itemsErr;
+      // Insert items one-by-one so we can capture each order_item id and attach
+      // its chosen modifiers. Carts are small, so the extra round-trips are fine.
+      for (const l of lines) {
+        const { data: oi, error: itemErr } = await (supabase as any)
+          .from("order_items")
+          .insert({
+            order_id: created.id,
+            item_id: l.item_id,
+            name_snapshot: l.name,
+            unit_price_cents: lineUnit(l),
+            quantity: l.qty,
+          })
+          .select("id")
+          .single();
+        if (itemErr) throw itemErr;
+        if (l.modifiers?.length) {
+          const orderItemId = (oi as { id: string }).id;
+          const { error: modErr } = await (supabase as any).from("order_item_modifiers").insert(
+            l.modifiers.map((m) => ({
+              order_item_id: orderItemId,
+              modifier_group_id: m.group_id,
+              modifier_option_id: m.id,
+              name_snapshot: m.name,
+              price_delta_cents: m.price_delta_cents,
+            })),
+          );
+          if (modErr) throw modErr;
+        }
+      }
       return created.number;
     },
     onSuccess: (number) => {
@@ -280,7 +356,7 @@ export default function Kiosk() {
       ? {
           storeName,
           orderNumber: orderNumber ?? 0,
-          lines: receipt.lines.map((l) => ({ name: l.name, qty: l.qty, unitCents: l.price_cents })),
+          lines: receipt.lines.map((l) => ({ name: l.name, qty: l.qty, unitCents: lineUnit(l) })),
           subtotalCents: receipt.subtotal,
           taxCents: receipt.taxCents,
           tipCents: receipt.tipCents,
@@ -359,7 +435,7 @@ export default function Kiosk() {
           <FlatList
             className="mt-3 flex-1"
             data={lines}
-            keyExtractor={(l) => l.item_id}
+            keyExtractor={(l) => l.lineId}
             ListEmptyComponent={<Text className="mt-8 text-center text-slate-400">Your cart is empty.</Text>}
             ListFooterComponent={
               suggestions.length > 0 ? (
@@ -393,12 +469,17 @@ export default function Kiosk() {
             }
             renderItem={({ item }) => (
               <View className="mb-2 flex-row items-center justify-between rounded-xl border border-slate-100 bg-white p-3">
-                <Text className="flex-1 pr-2 font-semibold">{item.name}</Text>
+                <View className="flex-1 pr-2">
+                  <Text className="font-semibold">{item.name}</Text>
+                  {item.modifiers?.length ? (
+                    <Text className="mt-0.5 text-xs text-slate-500">{item.modifiers.map((m) => m.name).join(", ")}</Text>
+                  ) : null}
+                </View>
                 <View className="flex-row items-center gap-3">
-                  <Pressable onPress={() => dec(item.item_id)} className="h-9 w-9 items-center justify-center rounded-full bg-slate-100"><Text className="text-xl">−</Text></Pressable>
+                  <Pressable onPress={() => decLine(item.lineId)} className="h-9 w-9 items-center justify-center rounded-full bg-slate-100"><Text className="text-xl">−</Text></Pressable>
                   <Text className="w-6 text-center text-lg font-semibold">{item.qty}</Text>
-                  <Pressable onPress={() => add({ id: item.item_id, name: item.name, description: null, price_cents: item.price_cents, image_url: null, category_id: null, modifier_group_ids: null })} className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: brand }}><Text className="text-xl text-white">+</Text></Pressable>
-                  <Text className="w-20 text-right font-semibold">{fmt(item.price_cents * item.qty)}</Text>
+                  <Pressable onPress={() => incLine(item.lineId)} className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: brand }}><Text className="text-xl text-white">+</Text></Pressable>
+                  <Text className="w-20 text-right font-semibold">{fmt(lineUnit(item) * item.qty)}</Text>
                 </View>
               </View>
             )}
@@ -464,6 +545,7 @@ export default function Kiosk() {
             {placeOrder.isError ? <Text className="mt-2 text-center text-red-600">{(placeOrder.error as Error).message}</Text> : null}
           </View>
         </View>
+        {modSheet}
       </ScreenContainer>
     );
   }
@@ -604,6 +686,7 @@ export default function Kiosk() {
           </View>
         </Pressable>
       ) : null}
+      {modSheet}
     </ScreenContainer>
   );
 }
