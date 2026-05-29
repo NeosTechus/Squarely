@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { onboardMerchant } from "../actions";
+import { MARKETING_URL } from "@/lib/marketingUrl";
 
 const PLANS = [
   { tier: "starter", label: "Starter (Free)" },
@@ -20,11 +21,16 @@ export default function NewClientPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [planTier, setPlanTier] = useState("growth");
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!agreed) {
+      setError("Confirm the client has accepted the Terms and Privacy Policy.");
+      return;
+    }
     setError(null);
     setLoading(true);
     const res = await onboardMerchant({ businessName, email, password, planTier });
@@ -69,9 +75,20 @@ export default function NewClientPage() {
           </select>
         </Field>
 
+        <label className="flex items-start gap-2 text-xs text-slate-600">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600" />
+          <span>
+            The client agrees to Squarely&apos;s{" "}
+            <a href={`${MARKETING_URL}/terms`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Terms of Service</a>{" "}
+            and{" "}
+            <a href={`${MARKETING_URL}/privacy`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Privacy Policy</a>.
+          </span>
+        </label>
+
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-        <button type="submit" disabled={loading}
+        <button type="submit" disabled={loading || !agreed}
           className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
           {loading ? "Creating…" : "Create client"}
         </button>

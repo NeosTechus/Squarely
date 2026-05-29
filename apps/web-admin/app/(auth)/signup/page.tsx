@@ -15,11 +15,16 @@ export default function Signup() {
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!agreed) {
+      setError("Please accept the Terms and Privacy Policy to continue.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -64,19 +69,27 @@ export default function Signup() {
         <AuthField label="Email" type="email" value={email} onChange={setEmail} required autoComplete="email" />
         <AuthField label="Password" type="password" value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
 
+        <label className="flex items-start gap-2 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+          />
+          <span>
+            I agree to the{" "}
+            <a href={`${MARKETING_URL}/terms`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Terms of Service</a>{" "}
+            and{" "}
+            <a href={`${MARKETING_URL}/privacy`} target="_blank" rel="noreferrer" className="text-brand-700 underline">Privacy Policy</a>.
+          </span>
+        </label>
+
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+        <Button type="submit" size="lg" className="w-full" disabled={loading || !agreed}>
           {loading ? "Creating…" : "Create store"}
         </Button>
       </form>
-
-      <p className="mt-4 text-center text-xs text-slate-500">
-        By creating an account you agree to our{" "}
-        <a href={`${MARKETING_URL}/terms`} className="underline hover:text-slate-700">Terms</a>{" "}
-        and{" "}
-        <a href={`${MARKETING_URL}/privacy`} className="underline hover:text-slate-700">Privacy Policy</a>.
-      </p>
       <p className="mt-2 text-center text-sm text-slate-600">
         Already have an account?{" "}
         <Link href="/login" className="font-medium text-brand-700 hover:underline">

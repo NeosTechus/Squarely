@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, Alert, Pressable, Switch, ImageBackground, Animated, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, Alert, Pressable, Switch, ImageBackground, Animated, KeyboardAvoidingView, Platform, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Button } from "@squarely/ui-mobile";
@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { loadCredentials, saveCredentials, clearCredentials } from "@/lib/savedCredentials";
 
 const BG = require("../../assets/login-bg.png");
+const MARKETING_URL = process.env.EXPO_PUBLIC_MARKETING_URL ?? "https://squarely-marketing.vercel.app";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // gentle float on the logo mark
@@ -41,6 +43,10 @@ export default function Login() {
 
   const signIn = async () => {
     if (!email || !password) return;
+    if (!agreed) {
+      Alert.alert("Terms required", "Please accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
@@ -63,6 +69,10 @@ export default function Login() {
   const sendMagicLink = async () => {
     if (!email) {
       Alert.alert("Email required", "Enter your email first.");
+      return;
+    }
+    if (!agreed) {
+      Alert.alert("Terms required", "Please accept the Terms of Service and Privacy Policy to continue.");
       return;
     }
     setLoading(true);
@@ -133,10 +143,32 @@ export default function Login() {
               ) : null}
             </View>
 
+            {/* Terms acceptance */}
+            <Pressable onPress={() => setAgreed((v) => !v)} className="mt-4 flex-row items-start gap-2">
+              <View
+                className={`mt-0.5 h-5 w-5 items-center justify-center rounded border ${
+                  agreed ? "border-brand-600 bg-brand-600" : "border-slate-300 bg-white"
+                }`}
+              >
+                {agreed ? <Text className="text-xs font-bold text-white">✓</Text> : null}
+              </View>
+              <Text className="flex-1 text-xs text-slate-500">
+                I agree to the{" "}
+                <Text className="text-brand-600 underline" onPress={() => Linking.openURL(`${MARKETING_URL}/terms`)}>
+                  Terms of Service
+                </Text>{" "}
+                and{" "}
+                <Text className="text-brand-600 underline" onPress={() => Linking.openURL(`${MARKETING_URL}/privacy`)}>
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
+            </Pressable>
+
             <Button
               label={loading ? "Signing in…" : "Sign in"}
               onPress={signIn}
-              disabled={loading || !email || !password}
+              disabled={loading || !email || !password || !agreed}
               className="mt-4"
               size="lg"
             />
