@@ -10,7 +10,8 @@ export default function ScrollProgress() {
     const update = () => {
       const el = document.documentElement;
       const max = el.scrollHeight - el.clientHeight;
-      setPct(max > 0 ? (el.scrollTop / max) * 100 : 0);
+      const top = window.scrollY || el.scrollTop || 0;
+      setPct(max > 0 ? Math.min(100, (top / max) * 100) : 0);
     };
     update();
     window.addEventListener("scroll", update, { passive: true });
@@ -22,9 +23,9 @@ export default function ScrollProgress() {
   }, []);
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[60] h-0.5">
+    <div className="fixed inset-x-0 top-0 z-[70] h-1 bg-slate-900/5">
       <div
-        className="h-full bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600"
+        className="h-full rounded-r-full bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600 shadow-[0_0_10px_rgba(51,163,255,0.65)] transition-[width] duration-150 ease-out"
         style={{ width: `${pct}%` }}
       />
     </div>
