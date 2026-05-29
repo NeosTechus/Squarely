@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import Reveal from "@/components/Reveal";
@@ -18,10 +19,12 @@ interface OrderRow {
 const fmt = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 export default function Orders() {
+  const qc = useQueryClient();
   const { data: merchantId } = useActiveMerchant();
-  const supabase = createBrowserClient() as unknown as { from: (t: string) => any };
+  const supabase = createBrowserClient() as unknown as { from: (t: string) => any; rpc: (fn: string, args?: any) => Promise<{ data: any; error: any }> };
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: orders = [], isLoading, error } = useQuery({
+  const { data: orders = [], isLoading, error: loadError } = useQuery({
     enabled: Boolean(merchantId),
     queryKey: ["orders", merchantId],
     queryFn: async (): Promise<OrderRow[]> => {
@@ -35,24 +38,35 @@ export default function Orders() {
     },
   });
 
+  const voidOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.rpc("void_order", { p_order_id: id });
+      if (error) throw new Error(error.message);
+      if (data && data !== "ok") throw new Error(data as string);
+    },
+    onSuccess: () => { setError(null); qc.invalidateQueries({ queryKey: ["orders", merchantId] }); },
+    onError: (e) => setError((e as Error).message),
+  });
+
   return (
     <div className="space-y-6">
       <Reveal as="h1" className="text-2xl font-bold tracking-tight">
         Orders
       </Reveal>
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <Reveal className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
-        ) : error ? (
-          <p className="p-6 text-sm text-red-600">{(error as Error).message}</p>
+        ) : loadError ? (
+          <p className="p-6 text-sm text-red-600">{(loadError as Error).message}</p>
         ) : orders.length === 0 ? (
           <p className="p-6 text-sm text-slate-600">
             No orders yet. Charge a sale on the POS app and it will show here.
           </p>
         ) : (
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-sm">
+          <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-6 py-3">Order</th>
@@ -61,21 +75,42 @@ export default function Orders() {
                 <th className="px-6 py-3">Payment</th>
                 <th className="px-6 py-3 text-right">Total</th>
                 <th className="px-6 py-3 text-right">Time</th>
+                <th className="px-6 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {orders.map((o) => (
-                <tr key={o.id} className="transition hover:bg-slate-50">
-                  <td className="px-6 py-3 font-medium">#{o.number}</td>
-                  <td className="px-6 py-3 text-slate-600">{o.source}</td>
-                  <td className="px-6 py-3 text-slate-600">{o.status}</td>
-                  <td className="px-6 py-3 text-slate-600">{o.payment_status}</td>
-                  <td className="px-6 py-3 text-right font-semibold">{fmt(o.total_cents)}</td>
-                  <td className="px-6 py-3 text-right text-slate-500">
-                    {new Date(o.created_at).toLocaleTimeString()}
-                  </td>
-                </tr>
-              ))}
+              {orders.map((o) => {
+                const voided = o.status === "cancelled";
+                return (
+                  <tr key={o.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-3 font-medium">#{o.number}</td>
+                    <td className="px-6 py-3 text-slate-600">{o.source}</td>
+                    <td className="px-6 py-3 text-slate-600">{o.status}</td>
+                    <td className="px-6 py-3 text-slate-600">{o.payment_status}</td>
+                    <td className="px-6 py-3 text-right font-semibold">{fmt(o.total_cents)}</td>
+                    <td className="px-6 py-3 text-right text-slate-500">
+                      {new Date(o.created_at).toLocaleTimeString()}
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      {voided ? (
+                        <span className="text-xs text-slate-400">voided</span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Void / refund order #${o.number}? This restores stock and cannot be undone.`)) {
+                              voidOrder.mutate(o.id);
+                            }
+                          }}
+                          disabled={voidOrder.isPending}
+                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Void / Refund
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>
