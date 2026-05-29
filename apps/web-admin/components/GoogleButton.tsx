@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { createBrowserClient } from "@squarely/db/browser";
 
-export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleButton({ label = "Continue with Google", disabled = false }: { label?: string; disabled?: boolean }) {
   const [loading, setLoading] = useState(false);
 
   async function signIn() {
+    if (disabled) return;
     setLoading(true);
     const supabase = createBrowserClient();
     const { error } = await supabase.auth.signInWithOAuth({
@@ -24,8 +25,8 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
     <button
       type="button"
       onClick={signIn}
-      disabled={loading}
-      className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      disabled={loading || disabled}
+      className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
     >
       <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
         <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
