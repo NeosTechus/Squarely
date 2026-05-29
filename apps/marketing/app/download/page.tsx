@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Apple, Play, ArrowRight } from "lucide-react";
+import { Apple, Play, ArrowRight, Download as DownloadIcon } from "lucide-react";
 import { SiteNav } from "@/components/SiteNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import Reveal from "@/components/Reveal";
@@ -72,6 +72,75 @@ export default function Download() {
             </p>
           </Reveal>
         </div>
+      </section>
+
+      {/* ───────── GET THE APP (ANDROID) ───────── */}
+      <section className="mx-auto max-w-3xl px-6 pt-20">
+        <Reveal>
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg md:p-10">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-600">
+              Available now
+            </p>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+              Get the app for Android
+            </h2>
+            <p className="mt-3 max-w-md text-slate-600">
+              Install the latest Squarely build directly on any Android phone or
+              tablet — download the APK or scan the QR code.
+            </p>
+
+            <div className="mt-8 flex flex-col items-start gap-8 sm:flex-row sm:items-center sm:justify-between">
+              {/* Download button + steps */}
+              <div className="w-full sm:flex-1">
+                <a
+                  href="https://expo.dev/artifacts/eas/cxiZNDjkgSj1sZEcoMZyrD.apk"
+                  download
+                  className="group inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg"
+                >
+                  <DownloadIcon size={18} />
+                  Download for Android (APK)
+                </a>
+
+                <ol className="mt-6 space-y-2 text-sm text-slate-600">
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-brand-600">1.</span>
+                    Tap download or scan the QR code.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-brand-600">2.</span>
+                    Open the downloaded file.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold text-brand-600">3.</span>
+                    Allow install from unknown sources if prompted.
+                  </li>
+                </ol>
+              </div>
+
+              {/* QR code */}
+              <div className="flex w-full flex-col items-center sm:w-auto">
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/app-qr.png"
+                    alt="Scan to install Squarely on Android"
+                    width={176}
+                    height={176}
+                    className="h-44 w-44 rounded-lg"
+                  />
+                </div>
+                <p className="mt-3 text-center text-xs font-medium text-slate-500">
+                  Scan to install on Android
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-8 flex items-center gap-2 border-t border-slate-100 pt-6 text-sm text-slate-500">
+              <Apple className="h-4 w-4 text-slate-400" />
+              iOS via TestFlight — coming soon.
+            </p>
+          </div>
+        </Reveal>
       </section>
 
       {/* ───────── NEXT STEPS ───────── */}
