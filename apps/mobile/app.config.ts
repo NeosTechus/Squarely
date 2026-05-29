@@ -12,6 +12,10 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   newArchEnabled: true,
+  // OTA updates (EAS Update). runtimeVersion ties a JS update to compatible
+  // native builds; bump native version when native code changes.
+  runtimeVersion: { policy: "appVersion" },
+  updates: { url: "https://u.expo.dev/8b898bf1-15e6-4f5b-9ab6-5c1b1b5e2122" },
   splash: {
     image: "./assets/splash.png",
     resizeMode: "contain",
