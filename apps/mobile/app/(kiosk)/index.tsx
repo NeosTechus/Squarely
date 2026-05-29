@@ -10,6 +10,7 @@ import { useKioskConfig } from "@/lib/useKioskConfig";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
+import { PasscodeLock } from "@/components/PasscodeLock";
 
 type PayChoice = "counter" | "card";
 
@@ -302,6 +303,7 @@ export default function Kiosk() {
   if (step === "welcome") {
     return (
       <ScreenContainer edges={["bottom"]}>
+        <PasscodeLock />
         <Pressable className="flex-1 active:opacity-95" style={{ backgroundColor: brand }} onPress={() => setStep("dining")}>
           {kiosk.imageUrl ? (
             <ImageBackground source={{ uri: kiosk.imageUrl }} resizeMode="cover" className="flex-1">

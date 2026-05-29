@@ -11,6 +11,7 @@ import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
+import { PasscodeLock } from "@/components/PasscodeLock";
 
 interface MenuItem {
   id: string;
@@ -335,6 +336,7 @@ export default function Pos() {
 
   return (
     <ScreenContainer>
+      <PasscodeLock />
       <View className={`flex-1 ${wide ? "flex-row" : "flex-col"}`}>
         <View className="flex-1 p-4">
           {/* top analytics + orders strip */}
