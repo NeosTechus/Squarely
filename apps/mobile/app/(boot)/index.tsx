@@ -5,6 +5,7 @@ import type { BootMode } from "@squarely/types";
 import { useBootMode } from "@/store/boot";
 import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
+import { Walkthrough } from "@/components/Walkthrough";
 
 interface ModeOption {
   mode: BootMode;
@@ -35,6 +36,7 @@ export default function BootPicker() {
 
   return (
     <ScreenContainer>
+      <Walkthrough />
       <ImpersonationBanner />
       <ScrollView contentContainerStyle={{ padding: 24 }}>
         <Text className="text-3xl font-bold tracking-tight">Pick a mode</Text>
