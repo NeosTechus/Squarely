@@ -14,6 +14,14 @@ const PLANS = [
   { tier: "enterprise", label: "Enterprise" },
 ];
 
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "IN", name: "India" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+];
+
 export default function NewClientPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -21,6 +29,7 @@ export default function NewClientPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [planTier, setPlanTier] = useState("growth");
+  const [country, setCountry] = useState("US");
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +42,7 @@ export default function NewClientPage() {
     }
     setError(null);
     setLoading(true);
-    const res = await onboardMerchant({ businessName, email, password, planTier });
+    const res = await onboardMerchant({ businessName, email, password, planTier, country });
     if (!res.ok) {
       setError(res.error);
       setLoading(false);
@@ -66,6 +75,13 @@ export default function NewClientPage() {
         <Field label="Temporary password">
           <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8}
             className="input" placeholder="min 8 characters" />
+        </Field>
+        <Field label="Country">
+          <select value={country} onChange={(e) => setCountry(e.target.value)} className="input">
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </select>
         </Field>
         <Field label="Plan">
           <select value={planTier} onChange={(e) => setPlanTier(e.target.value)} className="input">

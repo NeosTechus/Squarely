@@ -17,7 +17,8 @@ export type GatewayId =
   | "adyen"
   | "authorizenet"
   | "clover"
-  | "valor";
+  | "valor"
+  | "upi";
 
 export interface GatewayConfigField {
   key: string;
@@ -109,6 +110,16 @@ export const GATEWAY_CATALOG: GatewayPlugin[] = [
     configFields: [
       { key: "apiLoginId", label: "API login ID" },
       { key: "transactionKey", label: "Transaction key", secret: true },
+    ],
+  },
+  {
+    id: "upi",
+    label: "UPI (scan to pay)",
+    description: "India: show a UPI QR for the customer to scan and pay (Google Pay, PhonePe, Paytm…).",
+    manual: true,
+    configFields: [
+      { key: "upiVpa", label: "UPI ID / VPA", placeholder: "name@bank" },
+      { key: "payeeName", label: "Payee name", placeholder: "Your business name" },
     ],
   },
   {

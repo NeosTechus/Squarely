@@ -12,6 +12,7 @@ import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
 import { PasscodeLock } from "@/components/PasscodeLock";
+import { UpiQr, buildUpiUri } from "@/components/UpiQr";
 
 interface MenuItem {
   id: string;
@@ -62,10 +63,32 @@ export default function Pos() {
   // Receipt shown after a completed charge (snapshotted before the cart clears).
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
-  // Payment: cash / card / split. For split, the cashier enters the cash part.
-  type PayType = "cash" | "card" | "split";
+  // Payment: cash / card / split / upi. For split, the cashier enters the cash part.
+  type PayType = "cash" | "card" | "split" | "upi";
   const [payType, setPayType] = useState<PayType>("cash");
   const [splitCash, setSplitCash] = useState("");
+  const [showUpi, setShowUpi] = useState(false);
+
+  // UPI gateway (India scan-to-pay): present only if the merchant enabled it.
+  const { data: upi } = useQuery({
+    enabled: Boolean(merchantId),
+    queryKey: ["pos-upi-gateway", merchantId],
+    queryFn: async (): Promise<{ upiVpa: string; payeeName: string; qrImageUrl: string | null } | null> => {
+      const { data } = await (supabase as any)
+        .from("merchant_payment_gateways")
+        .select("config")
+        .eq("merchant_id", merchantId)
+        .eq("provider", "upi")
+        .eq("enabled", true)
+        .maybeSingle();
+      const cfg = data?.config;
+      if (!cfg) return null;
+      const upiVpa = cfg.upiVpa ? String(cfg.upiVpa) : "";
+      const qrImageUrl = cfg.qrImageUrl ? String(cfg.qrImageUrl) : null;
+      if (!upiVpa && !qrImageUrl) return null;
+      return { upiVpa, payeeName: String(cfg.payeeName ?? ""), qrImageUrl };
+    },
+  });
 
   // When settling a "pay at counter" order placed from the kiosk.
   const [settling, setSettling] = useState<{ id: string; number: number } | null>(null);
@@ -204,7 +227,7 @@ export default function Pos() {
           throw new Error("Enter the cash portion (less than the total); the rest goes on card.");
         }
       }
-      const paymentMethod = payType; // "cash" | "card" | "split"
+      const paymentMethod = payType; // "cash" | "card" | "split" | "upi"
       const isCard = payType === "card";
 
       // Resolve the order we're charging: the open one we're settling, or a new sale.
@@ -502,11 +525,11 @@ export default function Pos() {
               <Text className="text-base font-bold">Total</Text>
               <Text className="text-base font-bold">{fmt(grandTotal)}</Text>
             </View>
-            {/* payment type: cash / card / split */}
+            {/* payment type: cash / card / split / upi */}
             <View className="mt-3">
               <Text className="mb-2 text-sm font-semibold text-slate-500">Payment</Text>
-              <View className="flex-row gap-2">
-                {(["cash", "card", "split"] as const).map((t) => {
+              <View className="flex-row flex-wrap gap-2">
+                {(["cash", "card", "split", ...(upi ? (["upi"] as const) : [])] as PayType[]).map((t) => {
                   const sel = payType === t;
                   return (
                     <Pressable
@@ -515,7 +538,7 @@ export default function Pos() {
                       className="flex-1 items-center rounded-xl border py-2"
                       style={{ backgroundColor: sel ? brand : "#ffffff", borderColor: sel ? brand : "#e2e8f0" }}
                     >
-                      <Text className="text-sm font-semibold capitalize" style={{ color: sel ? "#ffffff" : "#475569" }}>{t}</Text>
+                      <Text className="text-sm font-semibold capitalize" style={{ color: sel ? "#ffffff" : "#475569" }}>{t === "upi" ? "UPI" : t}</Text>
                     </Pressable>
                   );
                 })}
@@ -544,7 +567,7 @@ export default function Pos() {
               className="mt-4"
               style={{ backgroundColor: brand }}
               disabled={cart.lines.length === 0 || charge.isPending}
-              onPress={() => charge.mutate()}
+              onPress={() => (payType === "upi" ? setShowUpi(true) : charge.mutate())}
             />
             <Button
               label="Clear"
@@ -630,6 +653,59 @@ export default function Pos() {
               onPress={() => setReceipt(null)}
             />
           </ScrollView>
+        </View>
+      </Modal>
+
+      {/* UPI scan-to-pay — customer scans the QR, cashier confirms receipt */}
+      <Modal visible={showUpi} animationType="slide" transparent onRequestClose={() => setShowUpi(false)}>
+        <Pressable onPress={() => setShowUpi(false)} className="flex-1 bg-slate-900/40" />
+        <View className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white">
+          <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
+            <Text className="text-lg font-bold">Scan to pay · UPI</Text>
+            <Pressable onPress={() => setShowUpi(false)} hitSlop={8}>
+              <Text className="text-sm font-medium text-brand-600">Cancel</Text>
+            </Pressable>
+          </View>
+          <View className="items-center px-5 py-6">
+            <Text className="text-3xl font-bold">{fmt(grandTotal)}</Text>
+            {upi ? (
+              <>
+                <View className="mt-5 rounded-2xl border border-slate-200 p-4">
+                  {upi.upiVpa ? (
+                    <UpiQr
+                      value={buildUpiUri({
+                        vpa: upi.upiVpa,
+                        payeeName: upi.payeeName,
+                        amountCents: grandTotal,
+                        note: settling ? `Order #${settling.number}` : undefined,
+                      })}
+                    />
+                  ) : (
+                    <Image source={{ uri: upi.qrImageUrl! }} style={{ width: 220, height: 220 }} resizeMode="contain" />
+                  )}
+                </View>
+                {upi.payeeName ? <Text className="mt-4 text-sm text-slate-500">{upi.payeeName}</Text> : null}
+                {upi.upiVpa ? (
+                  <Text className="text-xs text-slate-400">{upi.upiVpa}</Text>
+                ) : (
+                  <Text className="mt-3 px-6 text-center text-xs text-amber-600">
+                    Enter {fmt(grandTotal)} in the customer&apos;s UPI app — this QR doesn&apos;t carry the amount.
+                  </Text>
+                )}
+                <Text className="mt-3 px-6 text-center text-xs text-slate-400">
+                  Customer scans with any UPI app (Google Pay, PhonePe, Paytm). Confirm once their payment succeeds.
+                </Text>
+              </>
+            ) : null}
+            <Button
+              label={charge.isPending ? "Saving…" : "Mark received"}
+              size="lg"
+              className="mt-6 w-full"
+              style={{ backgroundColor: brand }}
+              disabled={charge.isPending}
+              onPress={() => { setShowUpi(false); charge.mutate(); }}
+            />
+          </View>
         </View>
       </Modal>
 

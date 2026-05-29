@@ -6,6 +6,7 @@ import { Card, ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useBootMode } from "@/store/boot";
+import { clearAppCache } from "@/lib/clearCache";
 import { OrderRow } from "@/components/OrderRow";
 
 const fmt = (c: number) => `$${(c / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -44,6 +45,21 @@ export default function Admin() {
   const [period, setPeriod] = useState<Period>("today");
   const qc = useQueryClient();
   const clearMode = useBootMode((s) => s.clear);
+  const [clearing, setClearing] = useState(false);
+  const [cleared, setCleared] = useState(false);
+
+  const onClearCache = async () => {
+    if (clearing) return;
+    setClearing(true);
+    try {
+      await clearAppCache();
+      qc.clear();
+      setCleared(true);
+      setTimeout(() => setCleared(false), 4000);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const switchMode = () => {
     clearMode();
@@ -233,6 +249,27 @@ export default function Admin() {
                 ))}
               </Card>
             ) : null}
+
+            {/* storage / cache management */}
+            <Card className="mt-7">
+              <Text className="text-sm font-semibold text-slate-700">Storage</Text>
+              <Text className="mt-1 text-xs text-slate-500">
+                Free up space — clears cached data on this device; you stay signed in.
+              </Text>
+              <Pressable
+                onPress={onClearCache}
+                disabled={clearing}
+                className={`mt-3 flex-row items-center justify-center rounded-lg border border-slate-200 px-3 py-2.5 active:bg-slate-50 ${clearing ? "opacity-60" : ""}`}
+              >
+                {clearing ? <ActivityIndicator size="small" className="mr-2" /> : null}
+                <Text className="text-sm font-medium text-slate-700">
+                  {clearing ? "Clearing…" : "Clear cached data"}
+                </Text>
+              </Pressable>
+              {cleared ? (
+                <Text className="mt-2 text-xs font-medium text-emerald-600">✓ Cleared</Text>
+              ) : null}
+            </Card>
 
             {/* order history */}
             <Text className="mb-3 mt-7 text-lg font-bold">Order history</Text>
