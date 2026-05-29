@@ -6,20 +6,13 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { onboardMerchant } from "../actions";
 import { MARKETING_URL } from "@/lib/marketingUrl";
+import { COUNTRIES } from "@/lib/countries";
 
 const PLANS = [
   { tier: "starter", label: "Starter (Free)" },
   { tier: "growth", label: "Growth ($29/mo)" },
   { tier: "pro", label: "Pro ($79/mo)" },
   { tier: "enterprise", label: "Enterprise" },
-];
-
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "IN", name: "India" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
 ];
 
 export default function NewClientPage() {
