@@ -5,3 +5,4 @@ export * from "./customer";
 export * from "./order";
 export * from "./payment";
 export * from "./device";
+export * from "./money";

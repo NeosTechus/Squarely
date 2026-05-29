@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { taxCents as computeTax } from "@squarely/types";
 import { supabase } from "./supabase";
 import { useActiveMerchant } from "./useActiveMerchant";
 
@@ -30,6 +31,6 @@ export function useMerchantTax() {
   return {
     bps,
     ratePct: bps / 100,
-    taxCents: (subtotalCents: number) => Math.round((subtotalCents * bps) / 10000),
+    taxCents: (subtotalCents: number) => computeTax(subtotalCents, bps),
   };
 }

@@ -33,3 +33,6 @@ jobs:
 
       - name: Typecheck mobile
         run: pnpm --filter @squarely/mobile exec tsc --noEmit
+
+      - name: Unit tests
+        run: pnpm test
