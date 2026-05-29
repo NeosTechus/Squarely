@@ -20,9 +20,13 @@ export async function middleware(req: NextRequest) {
     },
   );
 
+  // getSession reads the cookie (no network round-trip) — keeps every
+  // navigation fast. This is only a redirect gate; RLS still enforces real
+  // data access, so a cookie read is sufficient here.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const path = req.nextUrl.pathname;
   const protectedPath =

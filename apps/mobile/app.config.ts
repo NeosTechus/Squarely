@@ -15,7 +15,9 @@ const config: ExpoConfig = {
   // OTA updates (EAS Update). runtimeVersion ties a JS update to compatible
   // native builds; bump native version when native code changes.
   runtimeVersion: { policy: "appVersion" },
-  updates: { url: "https://u.expo.dev/8b898bf1-15e6-4f5b-9ab6-5c1b1b5e2122" },
+  // Cold-start fast: serve cached JS immediately and fetch any OTA update in
+  // the background (instead of blocking launch on the update check).
+  updates: { url: "https://u.expo.dev/8b898bf1-15e6-4f5b-9ab6-5c1b1b5e2122", fallbackToCacheTimeout: 0 },
   splash: {
     image: "./assets/splash.png",
     resizeMode: "contain",
