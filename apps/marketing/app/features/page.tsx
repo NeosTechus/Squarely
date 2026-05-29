@@ -55,7 +55,7 @@ export default function Features() {
         <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-28 text-center">
           <Reveal>
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">One platform, every tool</p>
-            <h1 className="mx-auto mt-7 max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-6xl">
+            <h1 className="mx-auto mt-7 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
               Everything you need to{" "}
               <span className="animate-gradient bg-gradient-to-r from-brand-300 via-brand-400 to-brand-200 bg-[length:200%_auto] bg-clip-text text-transparent">
                 run your business
@@ -70,8 +70,8 @@ export default function Features() {
       </section>
 
       {/* ───────── FEATURE GRID ───────── */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid gap-6 md:grid-cols-3">
+      <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           {features.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 80}>
               <div className="group h-full rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-brand-300 hover:shadow-lg">

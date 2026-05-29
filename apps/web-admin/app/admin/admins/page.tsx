@@ -41,7 +41,7 @@ export default function AdminsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">Platform admins</h1>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -89,9 +89,9 @@ export default function AdminsPage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {admins.map((a) => (
-              <li key={a.userId} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-800">{a.email}</div>
+              <li key={a.userId} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-slate-800">{a.email}</div>
                   <div className="text-xs text-slate-400">
                     Added {new Date(a.createdAt).toLocaleDateString()}
                   </div>
@@ -102,7 +102,7 @@ export default function AdminsPage() {
                     remove.mutate(a.userId);
                   }}
                   disabled={remove.isPending}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
                   Remove
                 </button>

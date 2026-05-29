@@ -43,7 +43,7 @@ export default function Home() {
             backgroundSize: "48px 48px",
           }}
         />
-        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-28 pt-28 text-center">
+        <div className="relative z-10 mx-auto max-w-7xl px-6 pb-20 pt-28 text-center sm:pb-28">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">
             Point of Sale · Kiosk · Kitchen · Back office
           </p>
@@ -151,7 +151,7 @@ export default function Home() {
       </section>
 
       {/* ───────── FEATURE GRID ───────── */}
-      <section className="mx-auto max-w-7xl px-6 py-24">
+      <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-4xl font-bold tracking-tight text-slate-900">Everything in one platform</h2>
           <p className="mt-4 text-lg text-slate-600">
@@ -306,8 +306,8 @@ export default function Home() {
       </section>
 
       {/* ───────── ALT HIGHLIGHTS ───────── */}
-      <section className="bg-slate-50 py-24">
-        <div className="mx-auto max-w-7xl space-y-24 px-6">
+      <section className="bg-slate-50 py-16 sm:py-24">
+        <div className="mx-auto max-w-7xl space-y-16 px-6 sm:space-y-24">
           <Reveal>
             <Highlight
               eyebrow="Point of Sale"
@@ -332,7 +332,7 @@ export default function Home() {
       </section>
 
       {/* ───────── HARDWARE & SETUP ───────── */}
-      <section className="mx-auto max-w-7xl px-6 py-24">
+      <section className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <Reveal className="mx-auto max-w-2xl text-center">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Hardware, handled</div>
           <h2 className="mt-3 text-4xl font-bold tracking-tight text-slate-900">
@@ -399,11 +399,11 @@ export default function Home() {
       </section>
 
       {/* ───────── WHY US ───────── */}
-      <section className="mx-auto max-w-5xl px-6 pb-24">
+      <section className="mx-auto max-w-5xl px-6 pb-16 sm:pb-24">
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 className="text-4xl font-bold tracking-tight text-slate-900">Why teams switch to Squarely</h2>
         </Reveal>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 md:grid-cols-3">
           {[
             { icon: <CreditCard />, title: "Bring your own gateway", body: "Choose your payment processor — Valor, Stripe, Square, or cash. Not locked in." },
             { icon: <Printer />, title: "Hardware-ready", body: "Epson receipt printers, card readers, barcode scanners, and cash drawers." },
@@ -479,7 +479,7 @@ function Highlight({
   visual: React.ReactNode;
 }) {
   return (
-    <div className="grid items-center gap-12 md:grid-cols-2">
+    <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
       <div className={align === "right" ? "md:order-2" : ""}>
         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">{eyebrow}</div>
         <h3 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">{title}</h3>

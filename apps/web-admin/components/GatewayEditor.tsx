@@ -126,11 +126,11 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
               aria-expanded={isOpen}
               className="flex w-full items-center justify-between gap-3 text-left"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
-                <span className="font-semibold text-slate-900">{gateway.label}</span>
+                <span className="truncate font-semibold text-slate-900">{gateway.label}</span>
                 {s.isDefault && s.enabled ? (
-                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Default</span>
+                  <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Default</span>
                 ) : null}
               </div>
               <span
@@ -175,7 +175,7 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
                     ) : (
                       <p className="text-sm text-slate-500">No configuration needed.</p>
                     )}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <button
                         type="button"
                         disabled={saving}

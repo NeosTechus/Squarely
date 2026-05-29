@@ -171,15 +171,15 @@ export default function Customers() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {filtered.map((c) => (
-              <li key={c.id} className="px-6 py-3 transition hover:bg-slate-50">
-                <p className="font-medium">
+              <li key={c.id} className="px-4 py-3 transition hover:bg-slate-50 sm:px-6">
+                <p className="truncate font-medium">
                   {c.display_name ?? "Unnamed customer"}
                 </p>
-                <p className="text-sm text-slate-500">
+                <p className="truncate text-sm text-slate-500">
                   {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
                 </p>
                 {c.notes ? (
-                  <p className="mt-1 text-sm text-slate-400">{c.notes}</p>
+                  <p className="mt-1 break-words text-sm text-slate-400">{c.notes}</p>
                 ) : null}
               </li>
             ))}

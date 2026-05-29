@@ -187,11 +187,11 @@ export default function Reports() {
               {topItems.map((it) => (
                 <li
                   key={it.name}
-                  className="flex items-center justify-between py-3 text-sm"
+                  className="flex items-center gap-3 py-3 text-sm"
                 >
-                  <span className="flex-1 font-medium">{it.name}</span>
-                  <span className="text-slate-500">×{it.qty}</span>
-                  <span className="w-20 text-right font-semibold">
+                  <span className="min-w-0 flex-1 truncate font-medium">{it.name}</span>
+                  <span className="shrink-0 text-slate-500">×{it.qty}</span>
+                  <span className="w-20 shrink-0 text-right font-semibold">
                     {fmt(it.revenue)}
                   </span>
                 </li>

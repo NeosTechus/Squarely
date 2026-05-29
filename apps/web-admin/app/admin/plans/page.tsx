@@ -35,7 +35,7 @@ export default function PlansPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
       <Reveal>
         <h1 className="text-2xl font-bold tracking-tight">Plans</h1>
         <p className="mt-2 text-sm text-slate-600">

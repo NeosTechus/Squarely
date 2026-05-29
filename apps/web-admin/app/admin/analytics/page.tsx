@@ -162,25 +162,25 @@ export default function AnalyticsPage() {
             ))}
           </div>
           {/* calendar / custom range */}
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1">
+          <div className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1">
             <input
               type="date"
               value={from}
               onChange={(e) => { setFrom(e.target.value); if (e.target.value && to) setPeriod("custom"); }}
-              className="text-sm text-slate-700 focus:outline-none"
+              className="min-w-0 flex-1 text-sm text-slate-700 focus:outline-none"
             />
             <span className="text-slate-400">→</span>
             <input
               type="date"
               value={to}
               onChange={(e) => { setTo(e.target.value); if (from && e.target.value) setPeriod("custom"); }}
-              className="text-sm text-slate-700 focus:outline-none"
+              className="min-w-0 flex-1 text-sm text-slate-700 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         {[
           <Stat key="gmv" label="Client sales (GMV)" value={isLoading ? "…" : fmt(view.gmv)} delta={view.gmvDelta} />,
           <Stat key="orders" label="Orders" value={isLoading ? "…" : String(view.count)} delta={view.countDelta} />,

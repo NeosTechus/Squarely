@@ -301,12 +301,12 @@ export default function Settings() {
 
         {/* Location */}
         <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="block text-sm">
+          <label className="block w-full text-sm sm:w-48">
             <span className="text-slate-700">Country</span>
             <select
               value={countryVal}
               onChange={(e) => setCountryVal(e.target.value)}
-              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
             >
               <option value="">Select…</option>
               {COUNTRIES.map((c) => (
@@ -324,13 +324,13 @@ export default function Settings() {
               className="mt-1 w-20 rounded-lg border border-slate-300 px-3 py-2 uppercase"
             />
           </label>
-          <label className="block text-sm">
+          <label className="block flex-1 text-sm sm:w-48 sm:flex-none">
             <span className="text-slate-700">City</span>
             <input
               value={cityVal}
               onChange={(e) => setCityVal(e.target.value)}
               placeholder="Los Angeles"
-              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
             />
           </label>
           <button

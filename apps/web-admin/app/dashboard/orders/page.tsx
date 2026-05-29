@@ -65,7 +65,9 @@ export default function Orders() {
             No orders yet. Charge a sale on the POS app and it will show here.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Desktop / tablet: table */}
+          <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -114,6 +116,47 @@ export default function Orders() {
             </tbody>
           </table>
           </div>
+
+          {/* Mobile: stacked cards */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {orders.map((o) => {
+              const voided = o.status === "cancelled";
+              return (
+                <li key={o.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">#{o.number}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {new Date(o.created_at).toLocaleTimeString()} · {o.source}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-semibold">{fmt(o.total_cents)}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs text-slate-600">
+                      {o.status} · {o.payment_status}
+                    </span>
+                    {voided ? (
+                      <span className="text-xs text-slate-400">voided</span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Void / refund order #${o.number}? This restores stock and cannot be undone.`)) {
+                            voidOrder.mutate(o.id);
+                          }
+                        }}
+                        disabled={voidOrder.isPending}
+                        className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Void / Refund
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          </>
         )}
       </Reveal>
     </div>

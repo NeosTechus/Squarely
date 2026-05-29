@@ -24,12 +24,12 @@ export function HeaderInfo() {
   });
 
   return (
-    <div>
-      <div className="text-base font-semibold text-slate-900">
+    <div className="min-w-0">
+      <div className="truncate text-base font-semibold text-slate-900">
         {data?.merchant ?? "Squarely"}
       </div>
       {data?.email ? (
-        <div className="text-xs text-slate-500">{data.email}</div>
+        <div className="truncate text-xs text-slate-500">{data.email}</div>
       ) : null}
     </div>
   );

@@ -23,7 +23,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <div className="flex min-h-screen flex-col bg-slate-50 md:flex-row">
       <AdminSidebar />
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
           <div className="text-sm text-slate-500">Platform console</div>
           <SignOutButton />
         </header>

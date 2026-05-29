@@ -129,7 +129,7 @@ export default function RevenuePage() {
     <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
       <Reveal as="h1" className="text-2xl font-bold tracking-tight">Revenue &amp; health</Reveal>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         {[
           <Stat key="mrr" label="MRR" value={dash(fmt(view.mrr))} hint="active subscriptions" />,
           <Stat key="arr" label="ARR" value={dash(fmt(view.arr))} hint="MRR × 12" />,
@@ -178,7 +178,7 @@ export default function RevenuePage() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {view.atRisk.map((c, i) => (
-              <li key={i} className="-mx-2 flex items-center justify-between rounded px-2 py-2 text-sm transition hover:bg-slate-50">
+              <li key={i} className="-mx-2 flex flex-wrap items-center justify-between gap-2 rounded px-2 py-2 text-sm transition hover:bg-slate-50">
                 <span className="font-medium text-slate-700">{c.name}</span>
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                   {c.last
