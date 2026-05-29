@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, ScrollText, Activity, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Package, TrendingUp, DollarSign, Megaphone, ShieldCheck, ScrollText, Activity, Menu, X, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -17,7 +17,7 @@ const nav = [
   { href: "/admin/audit", label: "Audit log", icon: ScrollText },
 ];
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate, collapsed }: { onNavigate?: () => void; collapsed?: boolean }) {
   const pathname = usePathname();
   return (
     <>
@@ -29,12 +29,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             key={item.href}
             href={item.href}
             onClick={onNavigate}
+            title={collapsed ? item.label : undefined}
             className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
-            }`}
+              collapsed ? "justify-center" : ""
+            } ${active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"}`}
           >
             <Icon size={18} />
-            {item.label}
+            {collapsed ? null : item.label}
           </Link>
         );
       })}
@@ -44,17 +45,43 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AdminSidebar() {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Restore the saved state on mount (kept out of initial render to avoid an
+  // SSR/client hydration mismatch).
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("admin-sidebar-collapsed") === "1");
+  }, []);
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("admin-sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
 
   return (
     <>
       {/* Desktop rail */}
-      <aside className="hidden w-56 flex-col border-r border-slate-200 bg-white md:flex">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <div className="text-base font-bold tracking-tight">Squarely</div>
-          <div className="text-xs text-slate-500">Platform Admin</div>
+      <aside className={`hidden flex-col border-r border-slate-200 bg-white md:flex ${collapsed ? "w-16" : "w-56"}`}>
+        <div className={`flex items-center border-b border-slate-200 py-4 ${collapsed ? "justify-center px-2" : "justify-between px-5"}`}>
+          {collapsed ? null : (
+            <div>
+              <div className="text-base font-bold tracking-tight">Squarely</div>
+              <div className="text-xs text-slate-500">Platform Admin</div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand" : "Collapse"}
+            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-50"
+          >
+            {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+          </button>
         </div>
         <nav className="flex-1 p-3">
-          <NavLinks />
+          <NavLinks collapsed={collapsed} />
         </nav>
       </aside>
 
