@@ -23,10 +23,12 @@ import { APP_SIGNUP_URL } from "@/lib/appUrl";
 import Reveal from "@/components/Reveal";
 import Marquee from "@/components/Marquee";
 import CountUp from "@/components/CountUp";
+import ScrollProgress from "@/components/ScrollProgress";
 
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-white">
+      <ScrollProgress />
       <SiteNav />
 
       {/* ───────── HERO ───────── */}
@@ -60,9 +62,9 @@ export default function Home() {
             to Square and Clover.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a href={APP_SIGNUP_URL}>
+            <a href={APP_SIGNUP_URL} className="group">
               <Button size="lg" className="gap-2">
-                Start free <ArrowRight size={18} />
+                Start free <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
               </Button>
             </a>
             <Link href="/pricing">
@@ -163,7 +165,7 @@ export default function Home() {
         <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-6">
           {/* POS — tall hero tile with a full register preview */}
           <Reveal className="lg:col-span-4 lg:row-span-2">
-            <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-slate-950 p-7 text-white">
+            <div className="group relative flex h-full flex-col overflow-hidden rounded-3xl bg-slate-950 p-7 text-white transition duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand-900/30">
               <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-brand-600/30 blur-3xl transition group-hover:bg-brand-500/40" />
               <div className="relative">
                 <BentoIcon dark><ShoppingBag size={20} /></BentoIcon>
@@ -228,7 +230,10 @@ export default function Home() {
                 ].map(([n, s, cls]) => (
                   <div key={n} className={`rounded-lg border p-2 ${cls}`}>
                     <div className="text-xs font-bold text-slate-800">{n}</div>
-                    <div className="mt-1 text-[9px] font-medium capitalize">{s}</div>
+                    <div className="mt-1 flex items-center gap-1 text-[9px] font-medium capitalize">
+                      {s === "preparing" ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" /> : null}
+                      {s}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -296,7 +301,11 @@ export default function Home() {
                 </div>
                 <div className="flex h-12 items-end gap-1">
                   {[40, 65, 50, 80, 60, 95, 72].map((h, i) => (
-                    <div key={i} className="w-1.5 rounded-t bg-brand-500/80" style={{ height: `${h}%` }} />
+                    <div
+                      key={i}
+                      className="grow-bar w-1.5 rounded-t bg-brand-500/80"
+                      style={{ height: `${h}%`, transitionDelay: `${i * 60}ms` }}
+                    />
                   ))}
                 </div>
               </div>
@@ -552,7 +561,7 @@ function CheckoutMock() {
             <div className="text-[11px] font-semibold text-slate-700">Tap, insert or swipe</div>
             <div className="text-[10px] text-slate-400">Reader connected</div>
           </div>
-          <span className="ml-auto h-2 w-2 rounded-full bg-emerald-500" />
+          <span className="ml-auto h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
         </div>
 
         <div className="mt-4 flex gap-2">
