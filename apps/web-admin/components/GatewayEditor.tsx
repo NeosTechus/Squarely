@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import { createBrowserClient } from "@squarely/db/browser";
 import { GATEWAY_CATALOG, type GatewayPlugin } from "@squarely/payments";
 
@@ -33,6 +34,9 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
   const qc = useQueryClient();
   const [state, setState] = useState<StateMap>(blankState);
   const [error, setError] = useState<string | null>(null);
+  // All gateways start collapsed; click a header to expand and configure.
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const toggleOpen = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
   const supabase = createBrowserClient() as unknown as { from: (t: string) => any };
 
@@ -113,68 +117,84 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
         const s = state[gateway.id];
         if (!s) return null;
         const saving = saveGateway.isPending && saveGateway.variables?.gateway.id === gateway.id;
+        const isOpen = open[gateway.id] ?? false;
         return (
           <div key={gateway.id} className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-slate-900">{gateway.label}</h3>
-                  {s.isDefault && s.enabled ? (
-                    <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Default</span>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-sm text-slate-500">{gateway.description}</p>
+            <button
+              type="button"
+              onClick={() => toggleOpen(gateway.id)}
+              aria-expanded={isOpen}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                <span className="font-semibold text-slate-900">{gateway.label}</span>
+                {s.isDefault && s.enabled ? (
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Default</span>
+                ) : null}
               </div>
-              <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
-                <span className="text-slate-600">{s.enabled ? "Enabled" : "Off"}</span>
-                <input
-                  type="checkbox"
-                  checked={s.enabled}
-                  onChange={(e) => patch(gateway.id, { enabled: e.target.checked })}
-                  className="h-4 w-4 accent-brand-600"
-                />
-              </label>
-            </div>
-            {s.enabled ? (
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                  s.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {s.enabled ? "On" : "Off"}
+              </span>
+            </button>
+            {isOpen ? (
               <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
-                {gateway.configFields.length > 0 ? (
-                  gateway.configFields.map((field) => (
-                    <label key={field.key} className="block text-sm">
-                      <span className="text-slate-700">
-                        {field.label}
-                        {field.optional ? <span className="text-slate-400"> (optional)</span> : null}
-                      </span>
-                      <input
-                        type={field.secret ? "password" : "text"}
-                        value={s.config[field.key] ?? ""}
-                        placeholder={field.placeholder}
-                        autoComplete="off"
-                        onChange={(e) => setConfigField(gateway.id, field.key, e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
-                      />
-                    </label>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500">No configuration needed.</p>
-                )}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => saveGateway.mutate({ gateway })}
-                    className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-                  >
-                    {saving ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={saving || s.isDefault}
-                    onClick={() => saveGateway.mutate({ gateway, makeDefault: true })}
-                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {s.isDefault ? "Default gateway" : "Set as default"}
-                  </button>
-                </div>
+                <p className="text-sm text-slate-500">{gateway.description}</p>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={s.enabled}
+                    onChange={(e) => patch(gateway.id, { enabled: e.target.checked })}
+                    className="h-4 w-4 accent-brand-600"
+                  />
+                  <span className="text-slate-600">{s.enabled ? "Enabled" : "Enable this gateway"}</span>
+                </label>
+                {s.enabled ? (
+                  <>
+                    {gateway.configFields.length > 0 ? (
+                      gateway.configFields.map((field) => (
+                        <label key={field.key} className="block text-sm">
+                          <span className="text-slate-700">
+                            {field.label}
+                            {field.optional ? <span className="text-slate-400"> (optional)</span> : null}
+                          </span>
+                          <input
+                            type={field.secret ? "password" : "text"}
+                            value={s.config[field.key] ?? ""}
+                            placeholder={field.placeholder}
+                            autoComplete="off"
+                            onChange={(e) => setConfigField(gateway.id, field.key, e.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-600 focus:outline-none"
+                          />
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500">No configuration needed.</p>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => saveGateway.mutate({ gateway })}
+                        className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        {saving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={saving || s.isDefault}
+                        onClick={() => saveGateway.mutate({ gateway, makeDefault: true })}
+                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {s.isDefault ? "Default gateway" : "Set as default"}
+                      </button>
+                    </div>
+                  </>
+                ) : null}
               </div>
             ) : null}
           </div>
