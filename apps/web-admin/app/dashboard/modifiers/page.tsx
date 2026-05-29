@@ -244,8 +244,8 @@ export default function Modifiers() {
                 key={g.id}
                 className="rounded-2xl border border-slate-200 bg-white"
               >
-                <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
-                  <span className="font-medium">{g.name}</span>
+                <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
+                  <span className="min-w-0 truncate font-medium">{g.name}</span>
                   {g.required ? (
                     <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
                       Required
@@ -285,7 +285,7 @@ export default function Modifiers() {
                         key={o.id}
                         className="flex items-center gap-4 px-4 py-2.5 sm:px-6"
                       >
-                        <span className="flex-1">{o.name}</span>
+                        <span className="min-w-0 flex-1 truncate">{o.name}</span>
                         {!o.active ? (
                           <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
                             Inactive

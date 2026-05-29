@@ -136,7 +136,7 @@ export default function Categories() {
                     No image
                   </span>
                 )}
-                <span className="flex-1 font-medium">{cat.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">{cat.name}</span>
                 {!cat.active ? (
                   <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">
                     Inactive

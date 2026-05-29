@@ -155,15 +155,15 @@ export default function Team() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {members.map((m) => (
-              <li key={m.id} className="flex items-center gap-4 px-6 py-3">
-                <span className="flex-1 font-medium">
+              <li key={m.id} className="flex items-center gap-4 px-4 py-3 sm:px-6">
+                <span className="min-w-0 flex-1 truncate font-medium">
                   {m.display_name || "—"}
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">
                   {m.role}
                 </span>
                 <span
-                  className={`w-20 text-right text-xs font-medium ${
+                  className={`w-20 shrink-0 text-right text-xs font-medium ${
                     m.active ? "text-green-600" : "text-slate-400"
                   }`}
                 >

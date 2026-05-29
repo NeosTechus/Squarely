@@ -86,7 +86,7 @@ export default function Pricing() {
         <div className="relative mx-auto max-w-3xl px-6 pb-20 pt-28 text-center">
           <Reveal>
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">Simple, transparent pricing</p>
-            <h1 className="mx-auto mt-7 max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-6xl">
+            <h1 className="mx-auto mt-7 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
               Plans that{" "}
               <span className="animate-gradient bg-gradient-to-r from-brand-300 via-brand-400 to-brand-200 bg-[length:200%_auto] bg-clip-text text-transparent">
                 grow with you
@@ -101,8 +101,8 @@ export default function Pricing() {
       </section>
 
       {/* ───────── TIERS ───────── */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="grid items-stretch gap-6 md:grid-cols-4">
+      <section className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
+        <div className="grid items-stretch gap-6 sm:grid-cols-2 md:grid-cols-4">
           {tiers.map((t, i) => (
             <Reveal key={t.name} delay={i * 80} className="flex">
               <div

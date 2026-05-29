@@ -3,8 +3,8 @@ import Link from "next/link";
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-slate-200 bg-slate-50">
-      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 md:grid-cols-4">
-        <div>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-6 py-12 md:grid-cols-4">
+        <div className="col-span-2 md:col-span-1">
           <div className="text-lg font-bold">Squarely</div>
           <p className="mt-2 text-sm text-slate-600">
             Run your business from one screen.

@@ -196,7 +196,7 @@ export default function Inventory() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <Reveal className="flex items-end justify-between gap-4">
+      <Reveal className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
         {locations.length > 0 ? (
           <label className="text-sm">

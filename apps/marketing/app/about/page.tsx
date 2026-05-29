@@ -11,7 +11,7 @@ export default function About() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(51,163,255,0.18),transparent_70%)]" />
         <div className="relative z-10 mx-auto max-w-3xl px-6 pb-20 pt-28 text-center">
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">About</p>
-          <h1 className="mt-7 text-5xl font-bold tracking-tight text-white md:text-6xl">
+          <h1 className="mt-7 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
             Commerce software,
             <br />
             <span className="bg-gradient-to-r from-brand-300 to-brand-200 bg-clip-text text-transparent">built to scale.</span>

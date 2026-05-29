@@ -44,7 +44,7 @@ export default function AdminOverview() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
       <Reveal as="h1" className="text-2xl font-bold tracking-tight">Platform overview</Reveal>
 
       <div className="grid gap-4 md:grid-cols-3">

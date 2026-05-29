@@ -175,7 +175,7 @@ export default function ClientsPage() {
 
       {/* detail */}
       <div
-        className={`${showDetailMobile ? "block" : "hidden"} flex-1 overflow-y-auto p-6 md:block`}
+        className={`${showDetailMobile ? "block" : "hidden"} flex-1 overflow-y-auto p-4 sm:p-6 md:block`}
       >
         <button
           type="button"

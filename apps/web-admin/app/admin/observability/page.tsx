@@ -150,7 +150,7 @@ export default function Observability() {
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Reveal as="h1" className="text-2xl font-bold tracking-tight">Observability</Reveal>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1">
             {RANGES.map((rg) => (
               <button
@@ -192,7 +192,7 @@ export default function Observability() {
       </section>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <Kpi label={`Orders ${rangeLabel}`} value={isLoading ? "…" : String(inRange.length)} />
         <Kpi label={`GMV ${rangeLabel}`} value={isLoading ? "…" : fmt(rangeGmv)} />
         <Kpi label="Active stores" value={isLoading ? "…" : String(activeStores)} hint={`${merchants.length} total`} />
@@ -243,9 +243,9 @@ export default function Observability() {
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
           <Card title={`Order volume (${range === "today" ? "today, by hour" : rangeLabel})`}>
-            <div className="flex h-32 items-end gap-1">
+            <div className="flex h-32 items-end gap-1 overflow-x-auto">
               {buckets.map((b, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
+                <div key={i} className="flex min-w-[10px] flex-1 flex-col items-center justify-end gap-1">
                   <div className="w-full rounded-t bg-brand-500" style={{ height: `${(b.count / maxBar) * 100}%`, minHeight: b.count ? 3 : 0 }} title={`${b.label}: ${b.count}`} />
                   <div className="text-[9px] text-slate-400">{b.label}</div>
                 </div>
@@ -289,7 +289,7 @@ export default function Observability() {
       <Card title="Recent orders (live)">
         {isLoading ? <p className="text-sm text-slate-400">Loading…</p> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
                   <th className="px-2 py-2 font-medium">Time</th>

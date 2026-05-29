@@ -34,7 +34,7 @@ export default function AuditPage() {
   });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
       <Reveal as="h1" className="text-2xl font-bold tracking-tight">Audit log</Reveal>
 
       {error ? (
@@ -45,7 +45,7 @@ export default function AuditPage() {
         <p className="text-sm text-slate-400">No audit events yet.</p>
       ) : (
         <Reveal className="overflow-x-auto rounded-2xl border border-slate-200 bg-white transition hover:shadow-md">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
                 <th className="px-4 py-3 font-medium">Time</th>

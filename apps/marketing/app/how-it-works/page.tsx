@@ -78,7 +78,7 @@ export default function HowItWorks() {
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-300/80">
               How it works
             </p>
-            <h1 className="mx-auto mt-7 max-w-2xl text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-6xl">
+            <h1 className="mx-auto mt-7 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
               Up and running in{" "}
               <span className="animate-gradient bg-gradient-to-r from-brand-300 via-brand-400 to-brand-200 bg-[length:200%_auto] bg-clip-text text-transparent">
                 minutes

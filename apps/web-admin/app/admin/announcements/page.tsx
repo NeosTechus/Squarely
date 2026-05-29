@@ -60,7 +60,7 @@ export default function AnnouncementsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">
         Announcements
       </h1>
@@ -123,7 +123,7 @@ export default function AnnouncementsPage() {
             {announcements.map((a) => (
               <li
                 key={a.id}
-                className="flex items-start justify-between gap-4 px-5 py-3"
+                className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
