@@ -169,6 +169,7 @@ export async function onboardMerchant(input: {
   email: string;
   password: string;
   planTier: string;
+  country?: string;
 }): Promise<OnboardResult> {
   const businessName = input.businessName.trim();
   const email = input.email.trim().toLowerCase();
@@ -212,7 +213,7 @@ export async function onboardMerchant(input: {
   const slug = `${businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || "store"}-${userId.slice(0, 6)}`;
   const { data: merchant, error: mErr } = await (svc as any)
     .from("merchants")
-    .insert({ name: businessName, slug, email })
+    .insert({ name: businessName, slug, email, country: input.country ?? "US" })
     .select("id")
     .single();
   if (mErr || !merchant) {

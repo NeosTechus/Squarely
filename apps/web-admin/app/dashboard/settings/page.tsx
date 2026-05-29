@@ -15,6 +15,14 @@ const PRESETS = [
   { name: "Slate", color: "#334155" },
 ];
 
+const COUNTRIES = [
+  { code: "US", name: "United States" },
+  { code: "IN", name: "India" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+];
+
 interface MerchantSettings {
   name: string;
   brand_color: string;
@@ -24,6 +32,7 @@ interface MerchantSettings {
   tax_rate_bps: number | null;
   region: string | null;
   city: string | null;
+  country: string | null;
   device_passcode: string | null;
 }
 
@@ -40,8 +49,15 @@ export default function Settings() {
   const [taxPercent, setTaxPercent] = useState("");
   const [stateVal, setStateVal] = useState("");
   const [cityVal, setCityVal] = useState("");
+  const [countryVal, setCountryVal] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // UPI (India scan-to-pay)
+  const [upiVpa, setUpiVpa] = useState("");
+  const [upiPayee, setUpiPayee] = useState("");
+  const [upiUploading, setUpiUploading] = useState(false);
+  const upiFileRef = useRef<HTMLInputElement>(null);
 
   const { data: merchant } = useQuery({
     enabled: Boolean(merchantId),
@@ -49,7 +65,7 @@ export default function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("merchants")
-        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps, region, city, device_passcode")
+        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps, region, city, country, device_passcode")
         .eq("id", merchantId)
         .single();
       if (error) throw error;
@@ -65,8 +81,92 @@ export default function Settings() {
       setTaxPercent(merchant.tax_rate_bps ? String(merchant.tax_rate_bps / 100) : "");
       setStateVal(merchant.region ?? "");
       setCityVal(merchant.city ?? "");
+      setCountryVal(merchant.country ?? "");
     }
   }, [merchant]);
+
+  // UPI gateway config (config holds upiVpa, payeeName, qrImageUrl).
+  const { data: upiGateway } = useQuery({
+    enabled: Boolean(merchantId),
+    queryKey: ["upi-gateway", merchantId],
+    queryFn: async (): Promise<{ upiVpa: string; payeeName: string; qrImageUrl: string | null } | null> => {
+      const { data } = await supabase
+        .from("merchant_payment_gateways")
+        .select("config")
+        .eq("merchant_id", merchantId)
+        .eq("provider", "upi")
+        .maybeSingle();
+      const cfg = data?.config;
+      if (!cfg) return null;
+      return {
+        upiVpa: String(cfg.upiVpa ?? ""),
+        payeeName: String(cfg.payeeName ?? ""),
+        qrImageUrl: cfg.qrImageUrl ? String(cfg.qrImageUrl) : null,
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (upiGateway) {
+      setUpiVpa(upiGateway.upiVpa);
+      setUpiPayee(upiGateway.payeeName);
+    }
+  }, [upiGateway]);
+
+  async function upsertUpi(config: { upiVpa: string; payeeName: string; qrImageUrl: string | null }) {
+    const { error } = await supabase
+      .from("merchant_payment_gateways")
+      .upsert(
+        { merchant_id: merchantId, provider: "upi", enabled: true, config },
+        { onConflict: "merchant_id,provider" },
+      );
+    if (error) throw error;
+    qc.invalidateQueries({ queryKey: ["upi-gateway", merchantId] });
+  }
+
+  const saveUpi = useMutation({
+    mutationFn: async () => {
+      await upsertUpi({
+        upiVpa: upiVpa.trim(),
+        payeeName: upiPayee.trim(),
+        qrImageUrl: upiGateway?.qrImageUrl ?? null,
+      });
+    },
+  });
+
+  const removeUpi = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("merchant_payment_gateways")
+        .delete()
+        .eq("merchant_id", merchantId)
+        .eq("provider", "upi");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setUpiVpa("");
+      setUpiPayee("");
+      qc.invalidateQueries({ queryKey: ["upi-gateway", merchantId] });
+    },
+  });
+
+  async function uploadUpiQr(file: File) {
+    if (!merchantId) return;
+    setUpiUploading(true);
+    try {
+      const path = `${merchantId}/upi-qr-${Date.now()}-${file.name}`;
+      const up = await supabase.storage.from("item-images").upload(path, file, { upsert: true });
+      if (up.error) throw up.error;
+      const url = supabase.storage.from("item-images").getPublicUrl(path).data.publicUrl;
+      await upsertUpi({ upiVpa: upiVpa.trim(), payeeName: upiPayee.trim(), qrImageUrl: url });
+    } finally {
+      setUpiUploading(false);
+    }
+  }
+
+  async function removeUpiQr() {
+    await upsertUpi({ upiVpa: upiVpa.trim(), payeeName: upiPayee.trim(), qrImageUrl: null });
+  }
 
   // Resolved location-based rate (used unless a manual override is set).
   const { data: locationBps = 0 } = useQuery({
@@ -92,7 +192,7 @@ export default function Settings() {
     mutationFn: async () => {
       const { error } = await supabase
         .from("merchants")
-        .update({ region: stateVal.trim().toUpperCase() || null, city: cityVal.trim() || null })
+        .update({ region: stateVal.trim().toUpperCase() || null, city: cityVal.trim() || null, country: countryVal || null })
         .eq("id", merchantId);
       if (error) throw error;
     },
@@ -206,6 +306,19 @@ export default function Settings() {
         {/* Location */}
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="block text-sm">
+            <span className="text-slate-700">Country</span>
+            <select
+              value={countryVal}
+              onChange={(e) => setCountryVal(e.target.value)}
+              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2"
+            >
+              <option value="">Select…</option>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
             <span className="text-slate-700">State</span>
             <input
               value={stateVal}
@@ -273,6 +386,95 @@ export default function Settings() {
           </button>
         </div>
       </section>
+
+      {/* UPI (India scan-to-pay) */}
+      {countryVal === "IN" ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="text-lg font-semibold">UPI · scan to pay</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Let customers pay by scanning a UPI QR (Google Pay, PhonePe, Paytm) at the POS. Enter your UPI ID so the
+            POS can generate a QR with the order amount, or upload your own UPI QR image.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm">
+              <span className="text-slate-700">UPI ID / VPA</span>
+              <input
+                value={upiVpa}
+                onChange={(e) => setUpiVpa(e.target.value.trim())}
+                placeholder="name@bank"
+                autoCapitalize="none"
+                className="mt-1 w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-slate-700">Payee name</span>
+              <input
+                value={upiPayee}
+                onChange={(e) => setUpiPayee(e.target.value)}
+                placeholder="Your business name"
+                className="mt-1 w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => saveUpi.mutate()}
+                disabled={saveUpi.isPending || !upiVpa.trim()}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {saveUpi.isPending ? "Saving…" : "Save UPI ID"}
+              </button>
+              {upiGateway ? (
+                <button
+                  onClick={() => removeUpi.mutate()}
+                  disabled={removeUpi.isPending}
+                  className="text-sm text-slate-500 hover:text-red-600"
+                >
+                  Remove UPI
+                </button>
+              ) : null}
+              {saveUpi.isSuccess ? <span className="text-sm text-emerald-600">Saved.</span> : null}
+            </div>
+          </div>
+
+          {/* QR image (alternative to a generated QR) */}
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Your UPI QR image (optional)</div>
+            <p className="mt-1 text-xs text-slate-400">
+              If you upload your printed UPI QR, the POS shows it as-is and the customer enters the amount.
+            </p>
+            <div className="mt-3 flex items-center gap-4">
+              <div className="h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                {upiGateway?.qrImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={upiGateway.qrImageUrl} alt="UPI QR" className="h-full w-full object-contain" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-slate-400">No QR</div>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <input
+                  ref={upiFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadUpiQr(f); }}
+                />
+                <button
+                  onClick={() => upiFileRef.current?.click()}
+                  disabled={upiUploading}
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                >
+                  {upiUploading ? "Uploading…" : upiGateway?.qrImageUrl ? "Replace QR" : "Upload QR"}
+                </button>
+                {upiGateway?.qrImageUrl ? (
+                  <button onClick={removeUpiQr} className="text-sm text-slate-500 hover:text-red-600">Remove QR</button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* DEVICE PASSCODE */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
