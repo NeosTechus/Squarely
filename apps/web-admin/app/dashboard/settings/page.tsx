@@ -22,6 +22,8 @@ interface MerchantSettings {
   kiosk_headline: string | null;
   kiosk_subtext: string | null;
   tax_rate_bps: number | null;
+  region: string | null;
+  city: string | null;
 }
 
 const MAX_TAX_PERCENT = 30;
@@ -29,12 +31,14 @@ const MAX_TAX_PERCENT = 30;
 export default function Settings() {
   const qc = useQueryClient();
   const { data: merchantId } = useActiveMerchant();
-  const supabase = createBrowserClient() as unknown as { from: (t: string) => any; storage: any };
+  const supabase = createBrowserClient() as unknown as { from: (t: string) => any; storage: any; rpc: (fn: string, args?: any) => Promise<{ data: any }> };
 
   const [color, setColor] = useState("#4f46e5");
   const [headline, setHeadline] = useState("");
   const [subtext, setSubtext] = useState("");
   const [taxPercent, setTaxPercent] = useState("");
+  const [stateVal, setStateVal] = useState("");
+  const [cityVal, setCityVal] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -44,7 +48,7 @@ export default function Settings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("merchants")
-        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps")
+        .select("name, brand_color, kiosk_image_url, kiosk_headline, kiosk_subtext, tax_rate_bps, region, city")
         .eq("id", merchantId)
         .single();
       if (error) throw error;
@@ -58,8 +62,31 @@ export default function Settings() {
       setHeadline(merchant.kiosk_headline ?? "");
       setSubtext(merchant.kiosk_subtext ?? "");
       setTaxPercent(merchant.tax_rate_bps ? String(merchant.tax_rate_bps / 100) : "");
+      setStateVal(merchant.region ?? "");
+      setCityVal(merchant.city ?? "");
     }
   }, [merchant]);
+
+  // Resolved location-based rate (used unless a manual override is set).
+  const { data: locationBps = 0 } = useQuery({
+    enabled: Boolean(merchant?.region),
+    queryKey: ["resolve-tax", merchant?.region, merchant?.city],
+    queryFn: async (): Promise<number> => {
+      const { data } = await supabase.rpc("resolve_tax_bps", { p_state: merchant?.region ?? null, p_city: merchant?.city ?? null });
+      return Number(data ?? 0);
+    },
+  });
+
+  const saveLocation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("merchants")
+        .update({ region: stateVal.trim().toUpperCase() || null, city: cityVal.trim() || null })
+        .eq("id", merchantId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["merchant-settings", merchantId] }),
+  });
 
   const saveColor = useMutation({
     mutationFn: async (next: string) => {
@@ -161,10 +188,57 @@ export default function Settings() {
       {/* SALES TAX */}
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="text-lg font-semibold">Sales tax</h2>
-        <p className="mt-1 text-sm text-slate-600">Applied to POS and Kiosk orders at checkout.</p>
-        <div className="mt-4 space-y-3">
+        <p className="mt-1 text-sm text-slate-600">
+          Tax is set automatically from your store&apos;s state &amp; city, applied to POS and Kiosk orders.
+        </p>
+
+        {/* Location */}
+        <div className="mt-4 flex flex-wrap items-end gap-3">
           <label className="block text-sm">
-            <span className="text-slate-700">Sales tax rate (%)</span>
+            <span className="text-slate-700">State</span>
+            <input
+              value={stateVal}
+              onChange={(e) => setStateVal(e.target.value)}
+              placeholder="CA"
+              maxLength={2}
+              className="mt-1 w-20 rounded-lg border border-slate-300 px-3 py-2 uppercase"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-slate-700">City</span>
+            <input
+              value={cityVal}
+              onChange={(e) => setCityVal(e.target.value)}
+              placeholder="Los Angeles"
+              className="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </label>
+          <button
+            onClick={() => saveLocation.mutate()}
+            disabled={saveLocation.isPending}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {saveLocation.isPending ? "Saving…" : "Save location"}
+          </button>
+        </div>
+
+        <div className="mt-3 rounded-lg bg-slate-50 px-4 py-3 text-sm">
+          {merchant?.region ? (
+            <span className="text-slate-700">
+              Location rate for <strong>{merchant.city ? `${merchant.city}, ` : ""}{merchant.region}</strong>:{" "}
+              <strong>{(locationBps / 100).toFixed(2)}%</strong>
+              {merchant.tax_rate_bps ? <span className="text-slate-400"> (overridden below)</span> : null}
+            </span>
+          ) : (
+            <span className="text-slate-500">Set your state to auto-apply the local tax rate.</span>
+          )}
+        </div>
+
+        {/* Manual override */}
+        <div className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+          <label className="block text-sm">
+            <span className="text-slate-700">Manual override (%)</span>
+            <span className="block text-xs text-slate-400">Leave blank to use the location rate above.</span>
             <input
               type="number"
               inputMode="decimal"
@@ -173,25 +247,18 @@ export default function Settings() {
               step="0.01"
               value={taxPercent}
               onChange={(e) => setTaxPercent(e.target.value)}
-              placeholder="0"
+              placeholder="auto"
               className="mt-1 w-32 rounded-lg border border-slate-300 px-3 py-2"
             />
           </label>
-          {taxInvalid ? (
-            <p className="text-sm text-red-600">Enter a number between 0 and {MAX_TAX_PERCENT}.</p>
-          ) : null}
-          {saveTax.isError ? (
-            <p className="text-sm text-red-600">Could not save. Please try again.</p>
-          ) : null}
-          {saveTax.isSuccess ? (
-            <p className="text-sm text-emerald-600">Saved.</p>
-          ) : null}
+          {taxInvalid ? <p className="text-sm text-red-600">Enter a number between 0 and {MAX_TAX_PERCENT}.</p> : null}
+          {saveTax.isSuccess ? <p className="text-sm text-emerald-600">Saved.</p> : null}
           <button
             onClick={submitTax}
             disabled={saveTax.isPending || taxInvalid}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
-            {saveTax.isPending ? "Saving…" : "Save tax rate"}
+            {saveTax.isPending ? "Saving…" : "Save override"}
           </button>
         </div>
       </section>

@@ -3,8 +3,9 @@ import { supabase } from "./supabase";
 import { useActiveMerchant } from "./useActiveMerchant";
 
 /**
- * The active merchant's sales-tax rate in basis points (e.g. 825 = 8.25%).
- * Use `taxCents(subtotal)` to compute tax on a subtotal.
+ * The active merchant's sales-tax rate in basis points (e.g. 825 = 8.25%),
+ * resolved from the store's state + city via resolve_tax_bps(). A non-zero
+ * merchants.tax_rate_bps acts as a manual override.
  */
 export function useMerchantTax() {
   const { data: merchantId } = useActiveMerchant();
@@ -12,13 +13,18 @@ export function useMerchantTax() {
     enabled: Boolean(merchantId),
     queryKey: ["merchant-tax", merchantId],
     queryFn: async (): Promise<number> => {
-      const { data, error } = await (supabase as any)
+      const { data: m } = await (supabase as any)
         .from("merchants")
-        .select("tax_rate_bps")
+        .select("tax_rate_bps, region, city")
         .eq("id", merchantId)
         .maybeSingle();
-      if (error) throw error;
-      return Number(data?.tax_rate_bps ?? 0);
+      const override = Number(m?.tax_rate_bps ?? 0);
+      if (override > 0) return override;
+      const { data: resolved } = await (supabase as any).rpc("resolve_tax_bps", {
+        p_state: m?.region ?? null,
+        p_city: m?.city ?? null,
+      });
+      return Number(resolved ?? 0);
     },
   });
   return {
