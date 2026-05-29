@@ -14,6 +14,7 @@ import {
   CreditCard,
   UserCog,
   ListOrdered,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@squarely/ui-web";
 
@@ -21,6 +22,7 @@ export const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/orders", label: "Orders", icon: ShoppingBag },
   { href: "/dashboard/items", label: "Items", icon: ListOrdered },
+  { href: "/dashboard/modifiers", label: "Modifiers", icon: SlidersHorizontal },
   { href: "/dashboard/categories", label: "Categories", icon: Boxes },
   { href: "/dashboard/inventory", label: "Inventory", icon: Boxes },
   { href: "/dashboard/customers", label: "Customers", icon: Users },

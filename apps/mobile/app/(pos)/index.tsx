@@ -10,12 +10,14 @@ import { chargeOnTerminal } from "@/lib/terminalCharge";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
+import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
 
 interface MenuItem {
   id: string;
   name: string;
   price_cents: number;
   image_url: string | null;
+  modifier_group_ids: string[] | null;
 }
 
 export default function Pos() {
@@ -47,6 +49,10 @@ export default function Pos() {
 
   const [showOrders, setShowOrders] = useState(false);
   const [showOpen, setShowOpen] = useState(false);
+
+  // Modifier picker: opened when adding an item that has modifier groups.
+  const [modItem, setModItem] = useState<MenuItem | null>(null);
+  const [showMods, setShowMods] = useState(false);
 
   // Tip on a new sale: preset % of subtotal or a custom dollar amount.
   const [tipCents, setTipCents] = useState(0);
@@ -135,6 +141,28 @@ export default function Pos() {
     setShowOpen(false);
   };
 
+  // Tapping a menu item: if it has modifier groups, open the picker; else add directly.
+  const onTapItem = (item: MenuItem) => {
+    if (item.modifier_group_ids?.length) {
+      setModItem(item);
+      setShowMods(true);
+    } else {
+      addItemToCart(item, []);
+    }
+  };
+
+  // Add a menu item to the cart, optionally with chosen modifiers.
+  const addItemToCart = (item: MenuItem, mods: SelectedModifier[]) => {
+    cart.addLine({
+      id: `${item.id}-${Date.now()}`,
+      item_id: item.id,
+      name: item.name,
+      unit_price_cents: item.price_cents,
+      quantity: 1,
+      modifiers: mods,
+    });
+  };
+
   const {
     data: items = [],
     isLoading,
@@ -145,7 +173,7 @@ export default function Pos() {
     queryFn: async (): Promise<MenuItem[]> => {
       const { data, error } = await (supabase as any)
         .from("items")
-        .select("id, name, price_cents, image_url")
+        .select("id, name, price_cents, image_url, modifier_group_ids")
         .eq("merchant_id", merchantId)
         .eq("active", true)
         .eq("kiosk_only", false)
@@ -207,10 +235,29 @@ export default function Pos() {
         if (orderErr) throw orderErr;
         orderId = (order as any).id;
         orderNumber = (order as any).number;
-        const { error: itemsErr } = await (supabase as any).from("order_items").insert(
-          lines.map((l) => ({ order_id: orderId, item_id: l.item_id, name_snapshot: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity })),
-        );
-        if (itemsErr) throw itemsErr;
+        // Insert each line individually so we can map the returned order_item id
+        // back to its source line and persist that line's chosen modifiers.
+        for (const l of lines) {
+          const { data: oi, error: itemsErr } = await (supabase as any)
+            .from("order_items")
+            .insert({ order_id: orderId, item_id: l.item_id, name_snapshot: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity })
+            .select("id")
+            .single();
+          if (itemsErr) throw itemsErr;
+          if (l.modifiers.length > 0) {
+            const orderItemId = (oi as any).id;
+            const { error: modsErr } = await (supabase as any).from("order_item_modifiers").insert(
+              l.modifiers.map((m) => ({
+                order_item_id: orderItemId,
+                modifier_group_id: m.group_id,
+                modifier_option_id: m.id,
+                name_snapshot: m.name,
+                price_delta_cents: m.price_delta_cents,
+              })),
+            );
+            if (modsErr) throw modsErr;
+          }
+        }
       }
 
       if (isCard) {
@@ -242,7 +289,12 @@ export default function Pos() {
         storeName,
         orderNumber,
         createdAt: new Date().toISOString(),
-        lines: lines.map((l) => ({ name: l.name, qty: l.quantity, unitCents: l.unit_price_cents })),
+        lines: lines.map((l) => ({
+          name: l.modifiers.length > 0 ? `${l.name} (${l.modifiers.map((m) => m.name).join(", ")})` : l.name,
+          qty: l.quantity,
+          // Include modifier deltas in the unit price so the receipt line total matches.
+          unitCents: l.unit_price_cents + l.modifiers.reduce((s, m) => s + m.price_delta_cents, 0),
+        })),
         subtotalCents: subtotal,
         taxCents: taxAmt,
         tipCents: tipAmt,
@@ -329,16 +381,7 @@ export default function Pos() {
             }
             renderItem={({ item }) => (
               <Pressable
-                onPress={() =>
-                  cart.addLine({
-                    id: `${item.id}-${Date.now()}`,
-                    item_id: item.id,
-                    name: item.name,
-                    unit_price_cents: item.price_cents,
-                    quantity: 1,
-                    modifiers: [],
-                  })
-                }
+                onPress={() => onTapItem(item)}
                 className="flex-1 rounded-xl border border-slate-200 bg-white p-2 active:bg-slate-50"
                 style={{ maxWidth: wide ? "24%" : "32%" }}
               >
@@ -379,11 +422,16 @@ export default function Pos() {
             keyExtractor={(l) => l.id}
             renderItem={({ item }) => (
               <Card className="mb-2 flex-row items-center justify-between">
-                <View>
+                <View className="flex-1 pr-2">
                   <Text className="font-semibold">{item.name}</Text>
                   <Text className="text-sm text-slate-500">
                     {item.quantity} × {fmt(item.unit_price_cents)}
                   </Text>
+                  {item.modifiers.length > 0 ? (
+                    <Text className="text-xs text-slate-400">
+                      {item.modifiers.map((m) => m.name).join(", ")}
+                    </Text>
+                  ) : null}
                 </View>
                 <Pressable onPress={() => cart.removeLine(item.id)}>
                   <Text className="text-red-600">Remove</Text>
@@ -582,6 +630,19 @@ export default function Pos() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Modifier picker — shown when adding an item that has modifier groups */}
+      <ModifierSheet
+        visible={showMods}
+        item={modItem}
+        brand={brand}
+        onClose={() => { setShowMods(false); setModItem(null); }}
+        onConfirm={(mods) => {
+          if (modItem) addItemToCart(modItem, mods);
+          setShowMods(false);
+          setModItem(null);
+        }}
+      />
     </ScreenContainer>
   );
 }
