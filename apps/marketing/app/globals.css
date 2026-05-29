@@ -140,6 +140,17 @@
   transform: none;
 }
 
+/* Bars that grow from the baseline when their reveal section scrolls into view. */
+.grow-bar {
+  transform: scaleY(0.08);
+  transform-origin: bottom;
+  transition: transform 0.8s var(--ease-out-expo);
+  will-change: transform;
+}
+.reveal.is-visible .grow-bar {
+  transform: scaleY(1);
+}
+
 /* Decorative / infinite animation utilities */
 @media (prefers-reduced-motion: no-preference) {
   .animate-floaty {
@@ -172,5 +183,9 @@
     opacity: 1;
     transform: none;
     transition: none;
+  }
+  .grow-bar {
+    transform: none !important;
+    transition: none !important;
   }
 }
