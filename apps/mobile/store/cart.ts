@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { subtotalCents as computeSubtotal } from "@squarely/types";
 
 export interface CartLine {
   id: string;
@@ -28,11 +29,5 @@ export const useCart = create<CartState>((set, get) => ({
       lines: s.lines.map((l) => (l.id === id ? { ...l, quantity } : l)),
     })),
   clear: () => set({ lines: [] }),
-  subtotalCents: () => {
-    const lines = get().lines;
-    return lines.reduce((sum, l) => {
-      const modSum = l.modifiers.reduce((m, mod) => m + mod.price_delta_cents, 0);
-      return sum + (l.unit_price_cents + modSum) * l.quantity;
-    }, 0);
-  },
+  subtotalCents: () => computeSubtotal(get().lines),
 }));
