@@ -53,9 +53,11 @@ export default function Settings() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // UPI (India scan-to-pay)
+  // UPI (India scan-to-pay) — local form state is the single source of truth,
+  // so a VPA edit and a QR upload can't overwrite each other's stale values.
   const [upiVpa, setUpiVpa] = useState("");
   const [upiPayee, setUpiPayee] = useState("");
+  const [upiQrUrl, setUpiQrUrl] = useState<string | null>(null);
   const [upiUploading, setUpiUploading] = useState(false);
   const upiFileRef = useRef<HTMLInputElement>(null);
 
@@ -110,14 +112,16 @@ export default function Settings() {
     if (upiGateway) {
       setUpiVpa(upiGateway.upiVpa);
       setUpiPayee(upiGateway.payeeName);
+      setUpiQrUrl(upiGateway.qrImageUrl);
     }
   }, [upiGateway]);
 
-  async function upsertUpi(config: { upiVpa: string; payeeName: string; qrImageUrl: string | null }) {
+  // Always persists the full current form state, never a stale cached value.
+  async function upsertUpi(next: { upiVpa: string; payeeName: string; qrImageUrl: string | null }) {
     const { error } = await supabase
       .from("merchant_payment_gateways")
       .upsert(
-        { merchant_id: merchantId, provider: "upi", enabled: true, config },
+        { merchant_id: merchantId, provider: "upi", enabled: true, config: next },
         { onConflict: "merchant_id,provider" },
       );
     if (error) throw error;
@@ -126,11 +130,7 @@ export default function Settings() {
 
   const saveUpi = useMutation({
     mutationFn: async () => {
-      await upsertUpi({
-        upiVpa: upiVpa.trim(),
-        payeeName: upiPayee.trim(),
-        qrImageUrl: upiGateway?.qrImageUrl ?? null,
-      });
+      await upsertUpi({ upiVpa: upiVpa.trim(), payeeName: upiPayee.trim(), qrImageUrl: upiQrUrl });
     },
   });
 
@@ -146,6 +146,7 @@ export default function Settings() {
     onSuccess: () => {
       setUpiVpa("");
       setUpiPayee("");
+      setUpiQrUrl(null);
       qc.invalidateQueries({ queryKey: ["upi-gateway", merchantId] });
     },
   });
@@ -158,6 +159,7 @@ export default function Settings() {
       const up = await supabase.storage.from("item-images").upload(path, file, { upsert: true });
       if (up.error) throw up.error;
       const url = supabase.storage.from("item-images").getPublicUrl(path).data.publicUrl;
+      setUpiQrUrl(url);
       await upsertUpi({ upiVpa: upiVpa.trim(), payeeName: upiPayee.trim(), qrImageUrl: url });
     } finally {
       setUpiUploading(false);
@@ -165,6 +167,7 @@ export default function Settings() {
   }
 
   async function removeUpiQr() {
+    setUpiQrUrl(null);
     await upsertUpi({ upiVpa: upiVpa.trim(), payeeName: upiPayee.trim(), qrImageUrl: null });
   }
 
@@ -445,9 +448,9 @@ export default function Settings() {
             </p>
             <div className="mt-3 flex items-center gap-4">
               <div className="h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                {upiGateway?.qrImageUrl ? (
+                {upiQrUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={upiGateway.qrImageUrl} alt="UPI QR" className="h-full w-full object-contain" />
+                  <img src={upiQrUrl} alt="UPI QR" className="h-full w-full object-contain" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-slate-400">No QR</div>
                 )}
@@ -465,9 +468,9 @@ export default function Settings() {
                   disabled={upiUploading}
                   className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
                 >
-                  {upiUploading ? "Uploading…" : upiGateway?.qrImageUrl ? "Replace QR" : "Upload QR"}
+                  {upiUploading ? "Uploading…" : upiQrUrl ? "Replace QR" : "Upload QR"}
                 </button>
-                {upiGateway?.qrImageUrl ? (
+                {upiQrUrl ? (
                   <button onClick={removeUpiQr} className="text-sm text-slate-500 hover:text-red-600">Remove QR</button>
                 ) : null}
               </div>

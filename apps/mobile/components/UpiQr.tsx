@@ -34,12 +34,15 @@ export function UpiQr({ value, size = 220 }: { value: string; size?: number }) {
 
 /** Build a UPI deep-link / QR payload for a dynamic amount (INR). */
 export function buildUpiUri(opts: { vpa: string; payeeName: string; amountCents: number; note?: string }): string {
-  const params = new URLSearchParams({
-    pa: opts.vpa,
-    pn: opts.payeeName,
-    am: (opts.amountCents / 100).toFixed(2),
-    cu: "INR",
-  });
-  if (opts.note) params.set("tn", opts.note);
-  return `upi://pay?${params.toString()}`;
+  // Build manually with encodeURIComponent so spaces become %20, not "+"
+  // (URLSearchParams uses form-encoding; some UPI apps render the "+" literally).
+  const pairs: [string, string][] = [
+    ["pa", opts.vpa],
+    ["pn", opts.payeeName],
+    ["am", (opts.amountCents / 100).toFixed(2)],
+    ["cu", "INR"],
+  ];
+  if (opts.note) pairs.push(["tn", opts.note]);
+  const query = pairs.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+  return `upi://pay?${query}`;
 }
