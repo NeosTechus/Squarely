@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { setImpersonatedMerchant } from "@/lib/impersonation";
-import { setSuspended, changePlan, resetOwnerPassword, logImpersonation } from "./actions";
+import { setSuspended, changePlan, resetOwnerPassword, logImpersonation, setClientCountry } from "./actions";
 import { GatewayEditor } from "@/components/GatewayEditor";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { COUNTRIES, countryName } from "@/lib/countries";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
 const FEATURES: { key: FeatureKey; label: string }[] = [
@@ -44,6 +45,7 @@ interface MerchantRow {
   phone: string | null;
   city: string | null;
   region: string | null;
+  country: string | null;
   created_at: string;
   suspended: boolean;
   merchant_features: Record<FeatureKey, boolean> | null;
@@ -71,7 +73,7 @@ export default function ClientsPage() {
       const { data, error } = await supabase
         .from("merchants")
         .select(
-          "id, name, slug, email, phone, city, region, created_at, suspended, " +
+          "id, name, slug, email, phone, city, region, country, created_at, suspended, " +
             "merchant_features(pos, kiosk, kds, admin), " +
             "subscriptions(status, current_period_end, plans(display_name, tier, monthly_price_cents)), " +
             "locations(name, city, region), " +
@@ -216,6 +218,7 @@ function ClientDetail({
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin-merchants"] });
 
   const [planTier, setPlanTier] = useState(plan?.tier ?? "starter");
+  const [country, setCountry] = useState(m.country ?? "US");
   const [pwd, setPwd] = useState("");
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -235,6 +238,18 @@ function ClientDetail({
   const planMut = useMutation({
     mutationFn: async (tier: string) => {
       const r = await changePlan(m.id, tier);
+      if (!r.ok) throw new Error(r.error);
+    },
+    onSuccess: () => {
+      setErrMsg(null);
+      refresh();
+    },
+    onError: (e) => setErrMsg((e as Error).message),
+  });
+
+  const countryMut = useMutation({
+    mutationFn: async (code: string) => {
+      const r = await setClientCountry(m.id, code);
       if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
@@ -303,6 +318,7 @@ function ClientDetail({
             label="Primary location"
             value={loc ? `${loc.name}${loc.city ? ` · ${loc.city}` : ""}` : `${m.city ?? "—"}${m.region ? ", " + m.region : ""}`}
           />
+          <Detail label="Country" value={countryName(m.country)} />
           <Detail label="Locations" value={String(m.locations.length)} />
           <Detail label="Staff" value={String(m.members.length)} />
           <Detail label="Renews" value={renew ?? "—"} />
@@ -395,6 +411,32 @@ function ClientDetail({
               className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
             >
               Change plan
+            </button>
+          </div>
+
+          {/* Country */}
+          <div className="flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-5">
+            <div>
+              <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">
+                Country
+              </label>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">India enables UPI scan-to-pay for this client.</p>
+            </div>
+            <button
+              onClick={() => countryMut.mutate(country)}
+              disabled={countryMut.isPending || country === (m.country ?? "US")}
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              Save country
             </button>
           </div>
 

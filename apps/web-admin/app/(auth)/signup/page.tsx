@@ -9,10 +9,12 @@ import { signUpMerchant } from "../actions";
 import { GoogleButton } from "@/components/GoogleButton";
 import { AuthField } from "@/components/AuthField";
 import { MARKETING_URL } from "@/lib/marketingUrl";
+import { COUNTRIES } from "@/lib/countries";
 
 export default function Signup() {
   const router = useRouter();
   const [businessName, setBusinessName] = useState("");
+  const [country, setCountry] = useState("US");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -29,7 +31,7 @@ export default function Signup() {
     setLoading(true);
 
     // 1. Create account + merchant on the server.
-    const res = await signUpMerchant({ email, password, businessName });
+    const res = await signUpMerchant({ email, password, businessName, country });
     if (!res.ok) {
       setError(res.error);
       setLoading(false);
@@ -82,6 +84,18 @@ export default function Signup() {
 
       <form className="mt-6 space-y-5" onSubmit={onSubmit}>
         <AuthField label="Business name" value={businessName} onChange={setBusinessName} required />
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Country</span>
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-slate-900 focus:border-brand-600 focus:outline-none"
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </select>
+        </label>
         <AuthField label="Email" type="email" value={email} onChange={setEmail} required autoComplete="email" />
         <AuthField label="Password" type="password" value={password} onChange={setPassword} required minLength={8} autoComplete="new-password" />
 

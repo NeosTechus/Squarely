@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { COUNTRIES } from "@/lib/countries";
 
 const PRESETS = [
   { name: "Indigo", color: "#4f46e5" },
@@ -13,14 +14,6 @@ const PRESETS = [
   { name: "Sky", color: "#0284c7" },
   { name: "Violet", color: "#7c3aed" },
   { name: "Slate", color: "#334155" },
-];
-
-const COUNTRIES = [
-  { code: "US", name: "United States" },
-  { code: "IN", name: "India" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
 ];
 
 interface MerchantSettings {

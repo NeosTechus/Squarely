@@ -1,6 +1,7 @@
 "use server";
 
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
+import { COUNTRIES } from "@/lib/countries";
 
 export type OnboardResult =
   | { ok: true; merchantId: string }
@@ -72,6 +73,35 @@ export async function setSuspended(
     actor: actorId,
     action: suspended ? "suspend" : "reactivate",
     merchant_id: merchantId,
+  });
+  return { ok: true };
+}
+
+/** Platform-admin action: set a client's country (ISO alpha-2). */
+export async function setClientCountry(
+  merchantId: string,
+  country: string,
+): Promise<ActionResult> {
+  const code = country.trim().toUpperCase();
+  if (!COUNTRIES.some((c) => c.code === code)) {
+    return { ok: false, error: "Unsupported country." };
+  }
+
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { svc, actorId } = auth;
+
+  const { error } = await (svc as any)
+    .from("merchants")
+    .update({ country: code })
+    .eq("id", merchantId);
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "change_country",
+    merchant_id: merchantId,
+    detail: code,
   });
   return { ok: true };
 }
@@ -219,6 +249,18 @@ export async function onboardMerchant(input: {
   if (mErr || !merchant) {
     await svc.auth.admin.deleteUser(userId);
     return { ok: false, error: mErr?.message ?? "Could not create store." };
+  }
+
+  // Record Terms/Privacy acceptance (admin attests via the New-client form).
+  // Best-effort so it can't break onboarding if the column isn't migrated yet.
+  try {
+    const { error: tErr } = await (svc as any)
+      .from("merchants")
+      .update({ terms_accepted_at: new Date().toISOString() })
+      .eq("id", merchant.id);
+    if (tErr) console.warn("terms_accepted_at not recorded:", tErr.message);
+  } catch {
+    // ignore
   }
 
   // 3. Owner membership

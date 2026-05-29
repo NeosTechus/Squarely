@@ -5,6 +5,25 @@ import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
 export type SignUpResult = { ok: true } | { ok: false; error: string };
 
 /**
+ * Stamp Terms/Privacy acceptance time on the merchant. Best-effort: wrapped so
+ * it can't break signup if the `terms_accepted_at` column isn't migrated yet.
+ */
+async function recordTermsAccepted(
+  svc: ReturnType<typeof getServiceSupabase>,
+  merchantId: string,
+): Promise<void> {
+  try {
+    const { error } = await (svc as any)
+      .from("merchants")
+      .update({ terms_accepted_at: new Date().toISOString() })
+      .eq("id", merchantId);
+    if (error) console.warn("terms_accepted_at not recorded:", error.message);
+  } catch {
+    // never block account creation on consent bookkeeping
+  }
+}
+
+/**
  * Create a brand-new merchant + owner account.
  * Runs server-side with the service-role key because the `merchants` table
  * has no INSERT policy (merchant creation is a privileged onboarding action).
@@ -13,10 +32,12 @@ export async function signUpMerchant(formData: {
   email: string;
   password: string;
   businessName: string;
+  country?: string;
 }): Promise<SignUpResult> {
   const email = formData.email.trim().toLowerCase();
   const password = formData.password;
   const businessName = formData.businessName.trim();
+  const country = formData.country?.trim().toUpperCase() || "US";
 
   if (!email || !password || !businessName) {
     return { ok: false, error: "All fields are required." };
@@ -49,7 +70,7 @@ export async function signUpMerchant(formData: {
 
   const { data: merchant, error: merchantErr } = await (svc as any)
     .from("merchants")
-    .insert({ name: businessName, slug: uniqueSlug, email })
+    .insert({ name: businessName, slug: uniqueSlug, email, country })
     .select("id")
     .single();
 
@@ -58,6 +79,11 @@ export async function signUpMerchant(formData: {
     await svc.auth.admin.deleteUser(userId);
     return { ok: false, error: merchantErr?.message ?? "Could not create store." };
   }
+
+  // Record Terms/Privacy acceptance (the signup form requires the checkbox).
+  // Best-effort + separate from the insert so signup can't break if the
+  // terms_accepted_at column hasn't been migrated yet.
+  await recordTermsAccepted(svc, merchant.id);
 
   // 3. Owner membership.
   const { error: memberErr } = await (svc as any).from("merchant_members").insert({
