@@ -77,6 +77,37 @@ export async function setSuspended(
   return { ok: true };
 }
 
+/** Platform-admin action: edit a client's business name, contact email, phone. */
+export async function updateClientDetails(
+  merchantId: string,
+  input: { name: string; email: string; phone: string },
+): Promise<ActionResult> {
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  const phone = input.phone.trim();
+  if (!name) return { ok: false, error: "Business name is required." };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, error: "Enter a valid contact email." };
+  }
+
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { svc, actorId } = auth;
+
+  const { error } = await (svc as any)
+    .from("merchants")
+    .update({ name, email, phone: phone || null })
+    .eq("id", merchantId);
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "update_details",
+    merchant_id: merchantId,
+  });
+  return { ok: true };
+}
+
 /** Platform-admin action: set a client's country (ISO alpha-2). */
 export async function setClientCountry(
   merchantId: string,

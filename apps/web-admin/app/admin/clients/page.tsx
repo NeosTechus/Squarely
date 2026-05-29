@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { setImpersonatedMerchant } from "@/lib/impersonation";
-import { setSuspended, changePlan, resetOwnerPassword, logImpersonation, setClientCountry } from "./actions";
+import { setSuspended, changePlan, resetOwnerPassword, logImpersonation, setClientCountry, updateClientDetails } from "./actions";
 import { GatewayEditor } from "@/components/GatewayEditor";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { COUNTRIES, countryName } from "@/lib/countries";
@@ -191,7 +191,7 @@ export default function ClientsPage() {
             Select a client to view details.
           </div>
         ) : (
-          <ClientDetail merchant={selected} onToggle={toggle.mutate} toggling={toggle.isPending} />
+          <ClientDetail key={selected.id} merchant={selected} onToggle={toggle.mutate} toggling={toggle.isPending} />
         )}
       </div>
     </div>
@@ -222,6 +222,26 @@ function ClientDetail({
   const [pwd, setPwd] = useState("");
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [errMsg, setErrMsg] = useState<string | null>(null);
+
+  // Editable business details
+  const [name, setName] = useState(m.name);
+  const [email, setEmail] = useState(m.email);
+  const [phone, setPhone] = useState(m.phone ?? "");
+  const [detailsSaved, setDetailsSaved] = useState(false);
+  const detailsMut = useMutation({
+    mutationFn: async () => {
+      const r = await updateClientDetails(m.id, { name, email, phone });
+      if (!r.ok) throw new Error(r.error);
+    },
+    onSuccess: () => {
+      setErrMsg(null);
+      setDetailsSaved(true);
+      setTimeout(() => setDetailsSaved(false), 3000);
+      refresh();
+    },
+    onError: (e) => setErrMsg((e as Error).message),
+  });
+  const detailsDirty = name.trim() !== m.name || email.trim().toLowerCase() !== m.email || phone.trim() !== (m.phone ?? "");
 
   const suspendMut = useMutation({
     mutationFn: async (next: boolean) => {
@@ -323,6 +343,49 @@ function ClientDetail({
           <Detail label="Staff" value={String(m.members.length)} />
           <Detail label="Renews" value={renew ?? "—"} />
           <Detail label="Joined" value={new Date(m.created_at).toLocaleDateString()} />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">Business details</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm sm:col-span-2">
+            <span className="text-xs uppercase tracking-wide text-slate-400">Business name</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-xs uppercase tracking-wide text-slate-400">Contact email</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-xs uppercase tracking-wide text-slate-400">Phone</span>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="—"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+          </label>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={() => detailsMut.mutate()}
+            disabled={detailsMut.isPending || !detailsDirty}
+            className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+          >
+            {detailsMut.isPending ? "Saving…" : "Save details"}
+          </button>
+          {detailsSaved ? <span className="text-sm text-emerald-600">Saved.</span> : null}
+          <span className="text-xs text-slate-400">Contact email only; doesn&apos;t change the owner&apos;s login.</span>
         </div>
       </section>
 
