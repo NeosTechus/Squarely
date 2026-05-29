@@ -49,8 +49,18 @@ const config: ExpoConfig = {
     ],
     [
       "expo-build-properties",
-      { android: { kotlinVersion: "1.9.25" } },
+      {
+        android: {
+          kotlinVersion: "1.9.25",
+          // Shrink the release APK: strip unused code (R8/Proguard) and resources.
+          enableProguardInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
+      },
     ],
+    // Build for arm64 only — covers essentially all modern devices and roughly
+    // halves the universal APK (which otherwise bundles 4 CPU architectures).
+    "./plugins/with-arm64.js",
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
