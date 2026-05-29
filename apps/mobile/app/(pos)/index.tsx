@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, ScrollView, useWindowDimensions } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
@@ -89,6 +89,11 @@ export default function Pos() {
       return { upiVpa, payeeName: String(cfg.payeeName ?? ""), qrImageUrl };
     },
   });
+
+  // If UPI gets disabled (or we switch tenants), don't leave "upi" selected.
+  useEffect(() => {
+    if (payType === "upi" && !upi) setPayType("cash");
+  }, [upi, payType]);
 
   // When settling a "pay at counter" order placed from the kiosk.
   const [settling, setSettling] = useState<{ id: string; number: number } | null>(null);
