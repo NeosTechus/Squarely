@@ -17,6 +17,7 @@ interface ModeOption {
 
 const options: ModeOption[] = [
   { mode: "pos", title: "Point of Sale", body: "Ring up customers. Cart, modifiers, payments, receipts.", emoji: "🧾", feature: "pos" },
+  { mode: "register", title: "Register", body: "Supermarket checkout — scan barcodes, weigh items, ring up sales.", emoji: "🛒", feature: "pos" },
   { mode: "kiosk", title: "Self-Order Kiosk", body: "Customer-facing locked-down ordering screen.", emoji: "🖥️", feature: "kiosk" },
   { mode: "kds", title: "Kitchen Display", body: "See orders the moment they're placed. Mark ready.", emoji: "👨‍🍳", feature: "kds" },
   { mode: "admin", title: "Admin", body: "Reports, inventory, customers, devices.", emoji: "📊", feature: "admin" },
