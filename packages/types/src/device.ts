@@ -10,7 +10,7 @@ export const DeviceKind = z.enum([
 ]);
 export type DeviceKind = z.infer<typeof DeviceKind>;
 
-export const BootMode = z.enum(["pos", "kiosk", "kds", "admin"]);
+export const BootMode = z.enum(["pos", "kiosk", "kds", "admin", "register"]);
 export type BootMode = z.infer<typeof BootMode>;
 
 export const Device = z.object({

@@ -21,6 +21,7 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(boot)" />
         <Stack.Screen name="(pos)" />
+        <Stack.Screen name="(register)" />
         <Stack.Screen name="(kiosk)" options={{ gestureEnabled: false }} />
         <Stack.Screen name="(kds)" />
         <Stack.Screen name="(admin)" />
