@@ -19,7 +19,6 @@ import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { sendReceiptEmail } from "@/lib/sendReceipt";
-import { PasscodeLock } from "@/components/PasscodeLock";
 import { UpiQr, buildUpiUri } from "@/components/UpiQr";
 
 interface RegisterItem {
@@ -108,12 +107,12 @@ export default function Register() {
     queryFn: async (): Promise<{ upiVpa: string; payeeName: string; qrImageUrl: string | null } | null> => {
       const { data } = await (supabase as any)
         .from("merchant_payment_gateways")
-        .select("config")
+        .select("public_config")
         .eq("merchant_id", merchantId)
         .eq("provider", "upi")
         .eq("enabled", true)
         .maybeSingle();
-      const cfg = data?.config;
+      const cfg = data?.public_config;
       if (!cfg) return null;
       const upiVpa = cfg.upiVpa ? String(cfg.upiVpa) : "";
       const qrImageUrl = cfg.qrImageUrl ? String(cfg.qrImageUrl) : null;
@@ -431,7 +430,6 @@ export default function Register() {
 
   return (
     <ScreenContainer>
-      <PasscodeLock />
       <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
         <Text className="mb-2 text-2xl font-bold">Register</Text>
 

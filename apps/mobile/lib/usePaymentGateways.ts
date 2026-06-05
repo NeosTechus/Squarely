@@ -6,7 +6,11 @@ export interface PaymentGateway {
   provider: string;
   enabled: boolean;
   is_default: boolean;
-  config: Record<string, unknown> | null;
+  /**
+   * Non-secret portion of the gateway config (device id, environment, UPI VPA,
+   * etc.). Secrets stay server-side and are never returned to the client.
+   */
+  public_config: Record<string, unknown> | null;
 }
 
 /** Implicit fallback so the POS can always take a payment. */
@@ -14,7 +18,7 @@ const CASH_FALLBACK: PaymentGateway = {
   provider: "cash",
   enabled: true,
   is_default: true,
-  config: null,
+  public_config: null,
 };
 
 /**
@@ -29,7 +33,7 @@ export function usePaymentGateways() {
     queryFn: async (): Promise<PaymentGateway[]> => {
       const { data, error } = await (supabase as any)
         .from("merchant_payment_gateways")
-        .select("provider, enabled, is_default, config")
+        .select("provider, enabled, is_default, public_config")
         .eq("merchant_id", merchantId)
         .eq("enabled", true);
       if (error) throw error;

@@ -80,18 +80,18 @@ export default function Settings() {
     }
   }, [merchant]);
 
-  // UPI gateway config (config holds upiVpa, payeeName, qrImageUrl).
+  // UPI gateway config — non-secret, lives in public_config (upiVpa, payeeName, qrImageUrl).
   const { data: upiGateway } = useQuery({
     enabled: Boolean(merchantId),
     queryKey: ["upi-gateway", merchantId],
     queryFn: async (): Promise<{ upiVpa: string; payeeName: string; qrImageUrl: string | null } | null> => {
       const { data } = await supabase
         .from("merchant_payment_gateways")
-        .select("config")
+        .select("public_config")
         .eq("merchant_id", merchantId)
         .eq("provider", "upi")
         .maybeSingle();
-      const cfg = data?.config;
+      const cfg = data?.public_config;
       if (!cfg) return null;
       return {
         upiVpa: String(cfg.upiVpa ?? ""),
@@ -111,10 +111,12 @@ export default function Settings() {
 
   // Always persists the full current form state, never a stale cached value.
   async function upsertUpi(next: { upiVpa: string; payeeName: string; qrImageUrl: string | null }) {
+    // UPI carries no secrets — write the editable fields to public_config so
+    // members can also read them under the new column-level grants.
     const { error } = await supabase
       .from("merchant_payment_gateways")
       .upsert(
-        { merchant_id: merchantId, provider: "upi", enabled: true, config: next },
+        { merchant_id: merchantId, provider: "upi", enabled: true, public_config: next },
         { onConflict: "merchant_id,provider" },
       );
     if (error) throw error;

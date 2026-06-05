@@ -3,20 +3,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { createBrowserClient } from "@squarely/db/browser";
 import { GATEWAY_CATALOG, type GatewayPlugin } from "@squarely/payments";
+import { listMerchantGateways, saveMerchantGateway } from "@/app/admin/clients/actions";
 
-// Per-merchant payment gateway editor. Platform admins manage this for clients;
-// RLS (pa_all) lets a platform admin read/write any merchant's gateways.
-// NOTE: secret config values live in the `config` jsonb column — move to an
-// encrypted server-side store before real production processing.
+// Per-merchant payment gateway editor. Reads and writes go through the
+// platform-admin server actions (service-role) so that secret credentials
+// never travel through the browser supabase client.
 
-interface GatewayRow {
-  provider: string;
-  enabled: boolean;
-  is_default: boolean;
-  config: Record<string, string> | null;
-}
 interface GatewayState {
   enabled: boolean;
   isDefault: boolean;
@@ -38,18 +31,13 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const toggleOpen = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
-  const supabase = createBrowserClient() as unknown as { from: (t: string) => any };
-
   const { data: rows = [], isLoading } = useQuery({
     enabled: Boolean(merchantId),
     queryKey: ["mpg", merchantId],
-    queryFn: async (): Promise<GatewayRow[]> => {
-      const { data, error } = await supabase
-        .from("merchant_payment_gateways")
-        .select("provider, enabled, is_default, config")
-        .eq("merchant_id", merchantId);
-      if (error) throw error;
-      return (data as GatewayRow[]) ?? [];
+    queryFn: async () => {
+      const r = await listMerchantGateways(merchantId);
+      if (!r.ok) throw new Error(r.error);
+      return r.gateways;
     },
   });
 
@@ -60,7 +48,7 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
       next[r.provider] = {
         enabled: r.enabled,
         isDefault: r.is_default,
-        config: (r.config as Record<string, string>) ?? {},
+        config: { ...(r.config ?? {}) },
       };
     }
     setState(next);
@@ -69,25 +57,15 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
   const saveGateway = useMutation({
     mutationFn: async ({ gateway, makeDefault }: { gateway: GatewayPlugin; makeDefault?: boolean }) => {
       const s = state[gateway.id] ?? { enabled: false, isDefault: false, config: {} };
-      if (makeDefault) {
-        const { error: clearErr } = await supabase
-          .from("merchant_payment_gateways")
-          .update({ is_default: false })
-          .eq("merchant_id", merchantId);
-        if (clearErr) throw clearErr;
-      }
-      const isDefault = makeDefault ? true : s.isDefault;
-      const { error } = await supabase.from("merchant_payment_gateways").upsert(
-        {
-          merchant_id: merchantId,
-          provider: gateway.id,
-          enabled: s.enabled,
-          is_default: isDefault && s.enabled,
-          config: s.config,
-        },
-        { onConflict: "merchant_id,provider" },
-      );
-      if (error) throw error;
+      const r = await saveMerchantGateway({
+        merchantId,
+        provider: gateway.id,
+        enabled: s.enabled,
+        isDefault: s.isDefault,
+        config: s.config,
+        makeDefault,
+      });
+      if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
       setError(null);
