@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
 import { buildReceiptXml } from "@squarely/printing";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 // We build the ESC-POS XML and enqueue a print_jobs row. Actual dispatch
 // (LAN socket write, cloud SDP push, etc.) is intentionally deferred to a
@@ -81,6 +82,18 @@ export async function POST(req: NextRequest) {
   const userId = userData?.user?.id;
   if (!userId) {
     return NextResponse.json({ ok: false, error: "Invalid token." }, { status: 401 });
+  }
+
+  // Per-user rate limit: bounds print-queue flooding from a runaway client to
+  // 60/min/user. Placed after auth (so anon traffic 401s without consuming
+  // bucket entries) and before the order fetch (so a throttled caller does
+  // not hit Supabase).
+  const rl = checkRateLimit(`printers/dispatch:${userId}`, 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Rate limit exceeded. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec ?? 1) } },
+    );
   }
 
   // Fetch the order with embedded items + modifiers.
@@ -205,7 +218,13 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single();
   if (insErr) {
-    return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
+    // PostgREST error messages can include constraint/table/value text. Keep
+    // the public message generic; log detail server-side for ops.
+    console.error("[printers/dispatch] insert failed", insErr.message);
+    return NextResponse.json(
+      { ok: false, error: "Failed to enqueue print job." },
+      { status: 500 },
+    );
   }
 
   // Best-effort: stamp receipt_printed_at on the order (we treat enqueueing as

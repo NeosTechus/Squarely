@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -98,6 +99,17 @@ export async function POST(req: NextRequest) {
   const { data: userData } = await svc.auth.getUser(token);
   const userId = userData?.user?.id;
   if (!userId) return NextResponse.json({ ok: false, error: "Invalid token." }, { status: 401 });
+
+  // Per-user rate limit: Twilio bills per segment, so cap at 30/min/user.
+  // Placed after auth so anon traffic 401s without consuming bucket entries,
+  // and before the order fetch so a throttled caller does not hit Supabase.
+  const rl = checkRateLimit(`receipts/sms:${userId}`, 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Rate limit exceeded. Please slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec ?? 1) } },
+    );
+  }
 
   // Fetch order with embedded lines.
   const { data: orderRaw, error: orderErr } = await (svc as any)

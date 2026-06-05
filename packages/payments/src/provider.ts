@@ -17,6 +17,18 @@ export interface PaymentStatus {
   card_brand: string | null;
   auth_code: string | null;
   rrn: string | null;
+  /**
+   * The raw provider response payload, for server-side logging/debugging only.
+   *
+   * SECURITY: This MUST NEVER be spread into an HTTP response or otherwise
+   * returned to a client. Provider payloads (Adyen, Authorize.Net, Clover,
+   * Stripe Terminal, Valor, etc.) can contain card BIN data, full auth codes,
+   * internal provider ids, idempotency keys, and provider-side URLs. Callers
+   * in app routes must whitelist only the typed fields above (status,
+   * masked_pan, card_brand, ...) when shaping their response.
+   *
+   * If you find yourself wanting to forward `raw`, log it server-side instead.
+   */
   raw: unknown;
 }
 
