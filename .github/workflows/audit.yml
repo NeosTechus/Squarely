@@ -1,0 +1,86 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    # Mondays 07:00 UTC — one hour after Dependabot opens its weekly PRs.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+jobs:
+  pnpm-audit:
+    name: pnpm audit (prod, high+)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit (prod, high+)
+        id: audit
+        continue-on-error: true
+        run: |
+          set +e
+          pnpm audit --prod --audit-level=high --json > audit.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Summarize findings
+        if: always()
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          let raw;
+          try { raw = fs.readFileSync('audit.json', 'utf8'); }
+          catch { console.log('No audit.json produced.'); process.exit(0); }
+          let data; try { data = JSON.parse(raw); } catch {
+            console.log('::warning::Could not parse pnpm audit JSON');
+            console.log(raw);
+            process.exit(0);
+          }
+          const advisories = data.advisories
+            ? Object.values(data.advisories)
+            : (data.vulnerabilities || []);
+          const summary = ['# pnpm audit (prod, high+)', ''];
+          if (!advisories.length) {
+            summary.push('No high or critical advisories found.');
+          } else {
+            summary.push('| Severity | Package | Title | Range | Advisory |');
+            summary.push('|----------|---------|-------|-------|----------|');
+            for (const a of advisories) {
+              const sev = (a.severity || '').toUpperCase();
+              const name = a.module_name || a.name || '';
+              const title = (a.title || '').replace(/\|/g, '\\|');
+              const range = a.vulnerable_versions || a.range || '';
+              const url = a.url || (a.cves && a.cves[0]) || '';
+              summary.push(`| ${sev} | ${name} | ${title} | ${range} | ${url} |`);
+              const line = `${sev} ${name}: ${title} (${range}) ${url}`;
+              if (sev === 'CRITICAL' || sev === 'HIGH') console.log(`::error::${line}`);
+              else console.log(`::warning::${line}`);
+            }
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary.join('\n') + '\n');
+          EOF
+
+      - name: Fail on high or critical advisories
+        if: steps.audit.outputs.exit_code != '0'
+        run: |
+          echo "::error::pnpm audit reported high or critical advisories (exit ${{ steps.audit.outputs.exit_code }})."
+          exit 1

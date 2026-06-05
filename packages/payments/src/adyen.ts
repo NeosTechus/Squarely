@@ -135,10 +135,7 @@ export class AdyenProvider implements PaymentProvider {
     return { ok: false };
   }
 
-  async refund(paymentId: string, amountCents: number, currency?: string) {
-    if (!currency) {
-      return { ok: false, error: "Adyen refund requires the original payment currency." };
-    }
+  async refund(paymentId: string, amountCents: number, currency: string) {
     const res = await fetch(`https://checkout-${this.cfg.environment === "live" ? "live" : "test"}.adyen.com/v71/payments/${paymentId}/refunds`, {
       method: "POST",
       headers: this.headers(),

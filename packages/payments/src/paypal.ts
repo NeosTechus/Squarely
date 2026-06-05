@@ -76,7 +76,7 @@ export class PayPalProvider implements PaymentProvider {
   async cancel(): Promise<{ ok: boolean }> {
     return { ok: false };
   }
-  async refund(paymentId: string, amountCents: number, currency?: string) {
+  async refund(paymentId: string, amountCents: number, currency: string) {
     void paymentId;
     void amountCents;
     void currency;

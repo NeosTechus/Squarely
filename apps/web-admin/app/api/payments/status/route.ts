@@ -53,9 +53,17 @@ export async function POST(req: NextRequest) {
     const st = await adapter.checkStatus(pollToken, { merchantId, terminalId });
 
     if (st.status === "succeeded") {
+      // Persist the gateway-side identifier alongside the paid flag so refunds
+      // (POST /api/refunds) can recover the original transaction id without
+      // depending on the `payments` table, which is not populated today.
       await svc
         .from("orders")
-        .update({ payment_status: "paid", payment_method: "card" })
+        .update({
+          payment_status: "paid",
+          payment_method: "card",
+          gateway_payment_id: pollToken,
+          gateway_provider: provider,
+        })
         .eq("id", orderId);
     }
 
