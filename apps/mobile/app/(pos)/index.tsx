@@ -13,7 +13,6 @@ import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
-import { PasscodeLock } from "@/components/PasscodeLock";
 import { UpiQr, buildUpiUri } from "@/components/UpiQr";
 
 interface MenuItem {
@@ -85,12 +84,12 @@ export default function Pos() {
     queryFn: async (): Promise<{ upiVpa: string; payeeName: string; qrImageUrl: string | null } | null> => {
       const { data } = await (supabase as any)
         .from("merchant_payment_gateways")
-        .select("config")
+        .select("public_config")
         .eq("merchant_id", merchantId)
         .eq("provider", "upi")
         .eq("enabled", true)
         .maybeSingle();
-      const cfg = data?.config;
+      const cfg = data?.public_config;
       if (!cfg) return null;
       const upiVpa = cfg.upiVpa ? String(cfg.upiVpa) : "";
       const qrImageUrl = cfg.qrImageUrl ? String(cfg.qrImageUrl) : null;
@@ -234,14 +233,18 @@ export default function Pos() {
       const tipAmt = settling ? 0 : tipCents;
       const grandTotal = subtotal + taxAmt + tipAmt;
 
-      // Recorded payment (no real processor yet). payment_method = cash | card | split.
+      // Recorded payment. payment_method = cash | card | split | upi.
+      // For "split" the cash portion is collected at the counter; the rest hits the card reader.
+      let splitCardAmount = 0;
       if (payType === "split") {
         const cashPart = Math.round((parseFloat(splitCash) || 0) * 100);
         if (cashPart <= 0 || cashPart >= grandTotal) {
           throw new Error("Enter the cash portion (less than the total); the rest goes on card.");
         }
+        splitCardAmount = grandTotal - cashPart;
       }
       const paymentMethod = payType; // "cash" | "card" | "split" | "upi"
+      const needsReader = payType === "card" || payType === "split";
       const isCard = payType === "card";
 
       // Resolve the order we're charging: the open one we're settling, or a new sale.
@@ -266,7 +269,8 @@ export default function Pos() {
             tip_cents: tipAmt,
             total_cents: grandTotal,
             payment_method: paymentMethod,
-            payment_status: isCard ? "unpaid" : "paid", // card confirmed after the reader
+            // Card and split orders stay "unpaid" until the reader confirms; cash/upi paid immediately.
+            payment_status: needsReader ? "unpaid" : "paid",
           })
           .select("id, number")
           .single();
@@ -298,19 +302,21 @@ export default function Pos() {
         }
       }
 
-      if (isCard) {
-        // Try the merchant's card reader; fall back to recording if none configured.
+      if (needsReader) {
+        // For a full-card sale we charge the grand total; for a split we charge
+        // only the card portion (the cash portion is collected at the counter).
+        const chargeAmount = isCard ? grandTotal : splitCardAmount;
         const { result, error } = await chargeOnTerminal({
           merchantId,
           orderId,
-          amountCents: grandTotal,
+          amountCents: chargeAmount,
           onPrompt: () => Alert.alert("Tap card", "Ask the customer to tap or insert their card on the reader."),
         });
         if (result === "paid") {
-          await (supabase as any).from("orders").update({ payment_method: "card", status: "completed" }).eq("id", orderId);
+          await (supabase as any).from("orders").update({ payment_status: "paid", status: "completed" }).eq("id", orderId);
         } else if (result === "no_gateway") {
-          // No reader configured — record the card sale (demo behavior).
-          await (supabase as any).from("orders").update({ payment_method: "card", payment_status: "paid", status: "completed" }).eq("id", orderId);
+          // No reader configured — record the sale anyway (demo behavior).
+          await (supabase as any).from("orders").update({ payment_status: "paid", status: "completed" }).eq("id", orderId);
         } else {
           throw new Error(error ?? "Card payment failed.");
         }
@@ -376,7 +382,6 @@ export default function Pos() {
 
   return (
     <ScreenContainer>
-      <PasscodeLock />
       <View className={`flex-1 ${wide ? "flex-row" : "flex-col"}`}>
         <View className="flex-1 p-4">
           {/* top analytics + orders strip */}

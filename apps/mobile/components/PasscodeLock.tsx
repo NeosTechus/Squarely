@@ -10,7 +10,7 @@ import { useMerchantTheme } from "@/lib/useMerchantTheme";
  * a numeric keypad until the correct code is entered. Drop it inside POS/Kiosk.
  */
 export function PasscodeLock() {
-  const { enabled, verify } = useDevicePasscode();
+  const { status, verify } = useDevicePasscode();
   const unlocked = useUnlock((s) => s.unlocked);
   const unlock = useUnlock((s) => s.unlock);
   const brand = useMerchantTheme();
@@ -18,7 +18,9 @@ export function PasscodeLock() {
   const [err, setErr] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  if (!enabled || unlocked) return null;
+  // Fail closed: only hide the lock when we know the passcode is off, or this
+  // session has been unlocked. Loading / error / unknown all stay locked.
+  if (unlocked || status === "off") return null;
 
   const press = async (d: string) => {
     setErr(false);

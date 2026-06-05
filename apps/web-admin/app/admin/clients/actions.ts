@@ -338,6 +338,116 @@ export async function onboardMerchant(input: {
   return { ok: true, merchantId: merchant.id };
 }
 
+/**
+ * Per-provider list of non-secret config keys. Mirrors the `secret: false`
+ * fields in packages/payments/src/registry.ts. Used by saveGateway() below to
+ * derive public_config from the full config payload posted by the editor.
+ */
+const PUBLIC_CONFIG_KEYS: Record<string, readonly string[]> = {
+  cash: [],
+  stripe: ["readerId"],
+  square: ["locationId", "deviceId", "environment"],
+  paypal: ["clientId", "environment"],
+  adyen: ["merchantAccount", "poiId", "environment"],
+  authorizenet: ["apiLoginId"],
+  clover: ["merchantId", "deviceId", "environment"],
+  valor: ["apiBase", "epi"],
+  upi: ["upiVpa", "payeeName", "qrImageUrl"],
+};
+
+export interface GatewayRow {
+  provider: string;
+  enabled: boolean;
+  is_default: boolean;
+  config: Record<string, string>;
+  public_config: Record<string, string>;
+}
+
+/**
+ * Platform-admin action: read all payment gateway rows for a merchant,
+ * including secrets. Routed through the server because secrets are no longer
+ * column-readable by the browser session even for platform admins.
+ */
+export async function listMerchantGateways(
+  merchantId: string,
+): Promise<{ ok: true; gateways: GatewayRow[] } | { ok: false; error: string }> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { svc } = auth;
+  const { data, error } = await (svc as any)
+    .from("merchant_payment_gateways")
+    .select("provider, enabled, is_default, config, public_config")
+    .eq("merchant_id", merchantId);
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    gateways: ((data ?? []) as any[]).map((r) => ({
+      provider: String(r.provider),
+      enabled: Boolean(r.enabled),
+      is_default: Boolean(r.is_default),
+      config: (r.config ?? {}) as Record<string, string>,
+      public_config: (r.public_config ?? {}) as Record<string, string>,
+    })),
+  };
+}
+
+/**
+ * Platform-admin action: upsert a single gateway. The action splits the posted
+ * config into a public subset (mirrored into public_config) and the full
+ * config (which keeps the secrets). If makeDefault is true, clears the
+ * is_default flag on every other gateway for this merchant first.
+ */
+export async function saveMerchantGateway(input: {
+  merchantId: string;
+  provider: string;
+  enabled: boolean;
+  isDefault: boolean;
+  config: Record<string, string>;
+  makeDefault?: boolean;
+}): Promise<ActionResult> {
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return auth;
+  const { svc, actorId } = auth;
+
+  const publicKeys = PUBLIC_CONFIG_KEYS[input.provider] ?? [];
+  const publicConfig: Record<string, string> = {};
+  for (const k of publicKeys) {
+    const v = input.config[k];
+    if (v !== undefined && v !== "") publicConfig[k] = v;
+  }
+
+  if (input.makeDefault) {
+    const { error: clearErr } = await (svc as any)
+      .from("merchant_payment_gateways")
+      .update({ is_default: false })
+      .eq("merchant_id", input.merchantId);
+    if (clearErr) return { ok: false, error: clearErr.message };
+  }
+
+  const isDefault = input.makeDefault ? true : input.isDefault;
+  const { error } = await (svc as any).from("merchant_payment_gateways").upsert(
+    {
+      merchant_id: input.merchantId,
+      provider: input.provider,
+      enabled: input.enabled,
+      is_default: isDefault && input.enabled,
+      config: input.config,
+      public_config: publicConfig,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "merchant_id,provider" },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "save_gateway",
+    merchant_id: input.merchantId,
+    detail: input.provider,
+  });
+  return { ok: true };
+}
+
 /** Platform-admin action: record an impersonation ("view as") event. */
 export async function logImpersonation(merchantId: string): Promise<ActionResult> {
   const auth = await requirePlatformAdmin();
