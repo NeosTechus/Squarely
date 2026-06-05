@@ -18,7 +18,6 @@
   "dependencies": {
     "@expo/metro-runtime": "^4.0.1",
     "@react-native-async-storage/async-storage": "^2.1.0",
-    "@squarely/api-client": "workspace:*",
     "@squarely/auth": "workspace:*",
     "@squarely/db": "workspace:*",
     "@squarely/feature-flags": "workspace:*",

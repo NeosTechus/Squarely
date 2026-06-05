@@ -8,7 +8,7 @@ import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { chargeOnTerminal } from "@/lib/terminalCharge";
-import { sendReceiptEmail } from "@/lib/sendReceipt";
+import { sendReceiptEmail, sendReceiptSms } from "@/lib/sendReceipt";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
@@ -69,6 +69,10 @@ export default function Pos() {
   const [emailDraft, setEmailDraft] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Inline SMS-receipt UX state (mirrors email).
+  const [smsDraft, setSmsDraft] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsMsg, setSmsMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { data: features } = useMerchantFeatures();
 
   // Payment: cash / card / split / upi. For split, the cashier enters the cash part.
@@ -343,6 +347,8 @@ export default function Pos() {
       setReceiptOrderId(res.id);
       setEmailDraft("");
       setEmailMsg(null);
+      setSmsDraft("");
+      setSmsMsg(null);
       cart.clear();
       setSettling(null);
       setSplitCash("");
@@ -687,6 +693,40 @@ export default function Pos() {
                 {emailMsg ? (
                   <Text className={`mt-2 text-xs ${emailMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
                     {emailMsg.text}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            {features?.sms_receipts && receiptOrderId ? (
+              <View className="mt-3 rounded-2xl border border-slate-200 p-3">
+                <Text className="mb-2 text-xs uppercase tracking-wide text-slate-500">SMS receipt</Text>
+                <View className="flex-row items-center gap-2">
+                  <TextInput
+                    value={smsDraft}
+                    onChangeText={setSmsDraft}
+                    placeholder="+15551234567"
+                    autoCapitalize="none"
+                    keyboardType="phone-pad"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <Pressable
+                    disabled={smsSending || !/^\+?[1-9]\d{6,15}$/.test(smsDraft.replace(/[\s\-()]/g, ""))}
+                    onPress={async () => {
+                      setSmsSending(true);
+                      setSmsMsg(null);
+                      const r = await sendReceiptSms({ orderId: receiptOrderId, phone: smsDraft.trim() });
+                      setSmsSending(false);
+                      setSmsMsg(r.ok ? { ok: true, text: "Sent." } : { ok: false, text: r.error });
+                    }}
+                    className="rounded-lg px-3 py-2 disabled:opacity-50"
+                    style={{ backgroundColor: brand }}
+                  >
+                    <Text className="text-sm font-semibold text-white">{smsSending ? "…" : "Send"}</Text>
+                  </Pressable>
+                </View>
+                {smsMsg ? (
+                  <Text className={`mt-2 text-xs ${smsMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                    {smsMsg.text}
                   </Text>
                 ) : null}
               </View>
