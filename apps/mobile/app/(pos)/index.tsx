@@ -9,6 +9,7 @@ import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { chargeOnTerminal } from "@/lib/terminalCharge";
 import { sendReceiptEmail, sendReceiptSms } from "@/lib/sendReceipt";
+import { sendReceiptPrint } from "@/lib/sendReceiptPrint";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
@@ -73,7 +74,27 @@ export default function Pos() {
   const [smsDraft, setSmsDraft] = useState("");
   const [smsSending, setSmsSending] = useState(false);
   const [smsMsg, setSmsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Inline print-receipt UX state (no input — single-press dispatch).
+  const [printSending, setPrintSending] = useState(false);
+  const [printMsg, setPrintMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { data: features } = useMerchantFeatures();
+
+  // Has an enabled printer registered for this merchant? If not, the Print
+  // card stays hidden even when the toggle is on.
+  const { data: hasPrinter = false } = useQuery({
+    enabled: Boolean(merchantId) && (features?.print_receipts ?? false),
+    queryKey: ["pos-has-printer", merchantId],
+    queryFn: async (): Promise<boolean> => {
+      const { data } = await (supabase as any)
+        .from("printers")
+        .select("id")
+        .eq("merchant_id", merchantId)
+        .eq("active", true)
+        .limit(1)
+        .maybeSingle();
+      return Boolean(data?.id);
+    },
+  });
 
   // Payment: cash / card / split / upi. For split, the cashier enters the cash part.
   type PayType = "cash" | "card" | "split" | "upi";
@@ -134,8 +155,10 @@ export default function Pos() {
   const todayAvg = todayCount ? Math.round(todayRevenue / todayCount) : 0;
 
   // Open ("pay at counter") orders awaiting checkout — e.g. placed at the kiosk.
+  // Gated on `open_tabs_enabled` so the auto-expire mutation below doesn't fire
+  // (and we don't surface a queue the merchant has turned off).
   const { data: openOrders = [], refetch: refetchOpen } = useQuery({
-    enabled: Boolean(merchantId),
+    enabled: Boolean(merchantId) && (features?.open_tabs_enabled ?? true),
     queryKey: ["pos-open-orders", merchantId],
     queryFn: async () => {
       // Auto-expire stale unpaid counter orders (older than 1 hour) so they
@@ -183,8 +206,12 @@ export default function Pos() {
   };
 
   // Tapping a menu item: if it has modifier groups, open the picker; else add directly.
+  // When the modifiers feature is disabled for this merchant we skip the picker
+  // entirely and add the item with no modifiers — so cashiers never get stuck on
+  // a hidden sheet for an item that still has modifier_group_ids assigned.
   const onTapItem = (item: MenuItem) => {
-    if (item.modifier_group_ids?.length) {
+    const modifiersEnabled = features?.modifiers_enabled ?? true;
+    if (modifiersEnabled && item.modifier_group_ids?.length) {
       setModItem(item);
       setShowMods(true);
     } else {
@@ -233,8 +260,11 @@ export default function Pos() {
 
       // Tax + tip apply to a new sale. When settling an existing counter order we
       // just collect what's already owed (no recompute), so tax/tip are 0 here.
+      // Tip is also force-zeroed when the merchant has tips disabled, so even a
+      // stale `tipCents` value can never sneak onto a charge.
+      const tipsEnabled = features?.tips_enabled ?? true;
       const taxAmt = settling ? 0 : tax.taxCents(subtotal);
-      const tipAmt = settling ? 0 : tipCents;
+      const tipAmt = settling || !tipsEnabled ? 0 : tipCents;
       const grandTotal = subtotal + taxAmt + tipAmt;
 
       // Recorded payment. payment_method = cash | card | split | upi.
@@ -349,6 +379,7 @@ export default function Pos() {
       setEmailMsg(null);
       setSmsDraft("");
       setSmsMsg(null);
+      setPrintMsg(null);
       cart.clear();
       setSettling(null);
       setSplitCash("");
@@ -362,9 +393,12 @@ export default function Pos() {
   });
 
   // Cart totals for the footer. Settling collects what's owed (no tax/tip recompute).
+  // Mirror the same tips-disabled guard used in the charge mutation so the
+  // displayed totals (and the "Charge X" button label) match what we'd actually post.
+  const tipsEnabled = features?.tips_enabled ?? true;
   const subtotal = cart.subtotalCents();
   const taxAmt = settling ? 0 : tax.taxCents(subtotal);
-  const tipAmt = settling ? 0 : tipCents;
+  const tipAmt = settling || !tipsEnabled ? 0 : tipCents;
   const grandTotal = subtotal + taxAmt + tipAmt;
 
   const setPresetTip = (pct: number) => {
@@ -385,13 +419,15 @@ export default function Pos() {
             <Stat label="Today" value={fmt(todayRevenue)} />
             <Stat label="Orders" value={String(todayCount)} />
             <Stat label="Avg" value={fmt(todayAvg)} />
-            <Pressable
-              onPress={() => { refetchOpen(); setShowOpen(true); }}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 active:bg-slate-50"
-            >
-              <Text className="text-xs uppercase tracking-wide text-slate-500">Open</Text>
-              <Text className="mt-1 text-sm font-bold text-brand-600">{openOrders.length} ›</Text>
-            </Pressable>
+            {(features?.open_tabs_enabled ?? true) ? (
+              <Pressable
+                onPress={() => { refetchOpen(); setShowOpen(true); }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 active:bg-slate-50"
+              >
+                <Text className="text-xs uppercase tracking-wide text-slate-500">Open</Text>
+                <Text className="mt-1 text-sm font-bold text-brand-600">{openOrders.length} ›</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => { refetchOrders(); setShowOrders(true); }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 active:bg-slate-50"
@@ -486,8 +522,9 @@ export default function Pos() {
             }
           />
           <View className="border-t border-slate-200 pt-3">
-            {/* tip — new sales only (settling collects the counter order as-is) */}
-            {!settling ? (
+            {/* tip — new sales only (settling collects the counter order as-is),
+                and only when the merchant has tips enabled. */}
+            {!settling && tipsEnabled ? (
               <View className="mb-3">
                 <Text className="mb-2 text-sm font-semibold text-slate-500">Tip</Text>
                 <View className="flex-row gap-2">
@@ -597,8 +634,9 @@ export default function Pos() {
         </View>
       </View>
 
-      {/* Open ("pay at counter") orders modal */}
-      <Modal visible={showOpen} animationType="slide" transparent onRequestClose={() => setShowOpen(false)}>
+      {/* Open ("pay at counter") orders modal — defensively gated so stale state
+          can't pop the sheet after the feature is turned off. */}
+      <Modal visible={showOpen && (features?.open_tabs_enabled ?? true)} animationType="slide" transparent onRequestClose={() => setShowOpen(false)}>
         <Pressable onPress={() => setShowOpen(false)} className="flex-1 bg-slate-900/40" />
         <View className="absolute bottom-0 left-0 right-0 max-h-[75%] rounded-t-3xl bg-white">
           <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -693,6 +731,33 @@ export default function Pos() {
                 {emailMsg ? (
                   <Text className={`mt-2 text-xs ${emailMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
                     {emailMsg.text}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            {features?.print_receipts && receiptOrderId && hasPrinter ? (
+              <View className="mt-3 rounded-2xl border border-slate-200 p-3">
+                <Text className="mb-2 text-xs uppercase tracking-wide text-slate-500">Print receipt</Text>
+                <View className="flex-row items-center justify-between gap-2">
+                  <Text className="flex-1 text-sm text-slate-600">Send to the default printer.</Text>
+                  <Pressable
+                    disabled={printSending}
+                    onPress={async () => {
+                      setPrintSending(true);
+                      setPrintMsg(null);
+                      const r = await sendReceiptPrint({ orderId: receiptOrderId });
+                      setPrintSending(false);
+                      setPrintMsg(r.ok ? { ok: true, text: "Queued for printing." } : { ok: false, text: r.error });
+                    }}
+                    className="rounded-lg bg-brand-600 px-3 py-2 disabled:opacity-50"
+                    style={{ backgroundColor: brand }}
+                  >
+                    <Text className="text-sm font-semibold text-white">{printSending ? "…" : "Print"}</Text>
+                  </Pressable>
+                </View>
+                {printMsg ? (
+                  <Text className={`mt-2 text-xs ${printMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                    {printMsg.text}
                   </Text>
                 ) : null}
               </View>
@@ -795,9 +860,11 @@ export default function Pos() {
         </View>
       </Modal>
 
-      {/* Modifier picker — shown when adding an item that has modifier groups */}
+      {/* Modifier picker — shown when adding an item that has modifier groups.
+          Defensively AND-gated on `modifiers_enabled` so the sheet can never
+          render if the feature is toggled off mid-session. */}
       <ModifierSheet
-        visible={showMods}
+        visible={showMods && (features?.modifiers_enabled ?? true)}
         item={modItem}
         brand={brand}
         onClose={() => { setShowMods(false); setModItem(null); }}

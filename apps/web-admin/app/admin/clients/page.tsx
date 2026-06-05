@@ -12,7 +12,8 @@ import { COUNTRIES, countryName } from "@/lib/countries";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
 type ReceiptKey = "email_receipts" | "print_receipts" | "sms_receipts";
-type ToggleKey = FeatureKey | ReceiptKey;
+type CheckoutKey = "tips_enabled" | "modifiers_enabled" | "open_tabs_enabled";
+type ToggleKey = FeatureKey | ReceiptKey | CheckoutKey;
 const FEATURES: { key: FeatureKey; label: string }[] = [
   { key: "pos", label: "POS" },
   { key: "kiosk", label: "Kiosk" },
@@ -23,6 +24,19 @@ const RECEIPT_CHANNELS: { key: ReceiptKey; label: string; note?: string }[] = [
   { key: "email_receipts", label: "Email" },
   { key: "print_receipts", label: "Print", note: "Requires a printer registered in Devices" },
   { key: "sms_receipts", label: "SMS", note: "Delivery not yet wired (toggle reserved)" },
+];
+const CHECKOUT_FEATURES: { key: CheckoutKey; label: string; note?: string }[] = [
+  { key: "tips_enabled", label: "Tips", note: "Show tip prompt at checkout (POS + Kiosk)" },
+  {
+    key: "modifiers_enabled",
+    label: "Item modifiers",
+    note: "Allow modifier selection for items with modifier groups",
+  },
+  {
+    key: "open_tabs_enabled",
+    label: "Open orders queue",
+    note: "Pay-at-counter / kiosk-settlement flow on POS",
+  },
 ];
 
 interface Plan {
@@ -55,7 +69,11 @@ interface MerchantRow {
   country: string | null;
   created_at: string;
   suspended: boolean;
-  merchant_features: (Record<FeatureKey, boolean> & Partial<Record<ReceiptKey, boolean>>) | null;
+  merchant_features:
+    | (Record<FeatureKey, boolean> &
+        Partial<Record<ReceiptKey, boolean>> &
+        Partial<Record<CheckoutKey, boolean>>)
+    | null;
   subscription: Subscription | null;
   locations: LocationRow[];
   members: Member[];
@@ -81,7 +99,7 @@ export default function ClientsPage() {
         .from("merchants")
         .select(
           "id, name, slug, email, phone, city, region, country, created_at, suspended, " +
-            "merchant_features(pos, kiosk, kds, admin, email_receipts, print_receipts, sms_receipts), " +
+            "merchant_features(pos, kiosk, kds, admin, email_receipts, print_receipts, sms_receipts, tips_enabled, modifiers_enabled, open_tabs_enabled), " +
             "subscriptions(status, current_period_end, plans(display_name, tier, monthly_price_cents)), " +
             "locations(name, city, region), " +
             "merchant_members(display_name, role)",
@@ -90,7 +108,11 @@ export default function ClientsPage() {
       if (error) throw error;
       return (data ?? []).map((m: any) => ({
         ...m,
-        merchant_features: one<Record<FeatureKey, boolean> & Partial<Record<ReceiptKey, boolean>>>(m.merchant_features),
+        merchant_features: one<
+          Record<FeatureKey, boolean> &
+            Partial<Record<ReceiptKey, boolean>> &
+            Partial<Record<CheckoutKey, boolean>>
+        >(m.merchant_features),
         subscription: one<Subscription>(m.subscriptions),
         locations: m.locations ?? [],
         members: m.merchant_members ?? [],
@@ -445,6 +467,40 @@ function ClientDetail({
                     on ? "bg-emerald-500" : "bg-slate-300"
                   }`}
                   aria-label={`${r.label} ${on ? "on" : "off"}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      on ? "translate-x-5" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">Checkout features</h3>
+        <p className="mb-3 text-xs text-slate-400">
+          Flow-level switches that hide checkout steps not used by this client.
+        </p>
+        <div className="space-y-3">
+          {CHECKOUT_FEATURES.map((f) => {
+            const on = m.merchant_features?.[f.key] ?? true;
+            return (
+              <div key={f.key} className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm text-slate-700">{f.label}</div>
+                  {f.note ? <div className="text-xs text-slate-400">{f.note}</div> : null}
+                </div>
+                <button
+                  onClick={() => onToggle({ merchantId: m.id, key: f.key, value: !on })}
+                  disabled={toggling}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                    on ? "bg-emerald-500" : "bg-slate-300"
+                  }`}
+                  aria-label={`${f.label} ${on ? "on" : "off"}`}
                 >
                   <span
                     className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
