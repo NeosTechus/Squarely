@@ -11,11 +11,18 @@ import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { COUNTRIES, countryName } from "@/lib/countries";
 
 type FeatureKey = "pos" | "kiosk" | "kds" | "admin";
+type ReceiptKey = "email_receipts" | "print_receipts" | "sms_receipts";
+type ToggleKey = FeatureKey | ReceiptKey;
 const FEATURES: { key: FeatureKey; label: string }[] = [
   { key: "pos", label: "POS" },
   { key: "kiosk", label: "Kiosk" },
   { key: "kds", label: "KDS (chef)" },
   { key: "admin", label: "Admin" },
+];
+const RECEIPT_CHANNELS: { key: ReceiptKey; label: string; note?: string }[] = [
+  { key: "email_receipts", label: "Email" },
+  { key: "print_receipts", label: "Print", note: "Requires a printer registered in Devices" },
+  { key: "sms_receipts", label: "SMS", note: "Delivery not yet wired (toggle reserved)" },
 ];
 
 interface Plan {
@@ -48,7 +55,7 @@ interface MerchantRow {
   country: string | null;
   created_at: string;
   suspended: boolean;
-  merchant_features: Record<FeatureKey, boolean> | null;
+  merchant_features: (Record<FeatureKey, boolean> & Partial<Record<ReceiptKey, boolean>>) | null;
   subscription: Subscription | null;
   locations: LocationRow[];
   members: Member[];
@@ -74,7 +81,7 @@ export default function ClientsPage() {
         .from("merchants")
         .select(
           "id, name, slug, email, phone, city, region, country, created_at, suspended, " +
-            "merchant_features(pos, kiosk, kds, admin), " +
+            "merchant_features(pos, kiosk, kds, admin, email_receipts, print_receipts, sms_receipts), " +
             "subscriptions(status, current_period_end, plans(display_name, tier, monthly_price_cents)), " +
             "locations(name, city, region), " +
             "merchant_members(display_name, role)",
@@ -83,7 +90,7 @@ export default function ClientsPage() {
       if (error) throw error;
       return (data ?? []).map((m: any) => ({
         ...m,
-        merchant_features: one<Record<FeatureKey, boolean>>(m.merchant_features),
+        merchant_features: one<Record<FeatureKey, boolean> & Partial<Record<ReceiptKey, boolean>>>(m.merchant_features),
         subscription: one<Subscription>(m.subscriptions),
         locations: m.locations ?? [],
         members: m.merchant_members ?? [],
@@ -92,7 +99,7 @@ export default function ClientsPage() {
   });
 
   const toggle = useMutation({
-    mutationFn: async (args: { merchantId: string; key: FeatureKey; value: boolean }) => {
+    mutationFn: async (args: { merchantId: string; key: ToggleKey; value: boolean }) => {
       const { error } = await supabase
         .from("merchant_features")
         .update({ [args.key]: args.value, updated_at: new Date().toISOString() })
@@ -204,7 +211,7 @@ function ClientDetail({
   toggling,
 }: {
   merchant: MerchantRow;
-  onToggle: (a: { merchantId: string; key: FeatureKey; value: boolean }) => void;
+  onToggle: (a: { merchantId: string; key: ToggleKey; value: boolean }) => void;
   toggling: boolean;
 }) {
   const qc = useQueryClient();
@@ -404,6 +411,40 @@ function ClientDetail({
                     on ? "bg-emerald-500" : "bg-slate-300"
                   }`}
                   aria-label={`${f.label} ${on ? "on" : "off"}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      on ? "translate-x-5" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">Receipt delivery</h3>
+        <p className="mb-3 text-xs text-slate-400">
+          Channels this client&apos;s staff can use to deliver receipts at checkout.
+        </p>
+        <div className="space-y-3">
+          {RECEIPT_CHANNELS.map((r) => {
+            const on = m.merchant_features?.[r.key] ?? (r.key === "sms_receipts" ? false : true);
+            return (
+              <div key={r.key} className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-sm text-slate-700">{r.label}</div>
+                  {r.note ? <div className="text-xs text-slate-400">{r.note}</div> : null}
+                </div>
+                <button
+                  onClick={() => onToggle({ merchantId: m.id, key: r.key, value: !on })}
+                  disabled={toggling}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                    on ? "bg-emerald-500" : "bg-slate-300"
+                  }`}
+                  aria-label={`${r.label} ${on ? "on" : "off"}`}
                 >
                   <span
                     className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${

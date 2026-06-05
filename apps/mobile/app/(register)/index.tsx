@@ -16,7 +16,9 @@ import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
+import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { useMerchantTax } from "@/lib/useMerchantTax";
+import { sendReceiptEmail } from "@/lib/sendReceipt";
 import { PasscodeLock } from "@/components/PasscodeLock";
 import { UpiQr, buildUpiUri } from "@/components/UpiQr";
 
@@ -72,6 +74,12 @@ export default function Register() {
   const [payType, setPayType] = useState<"cash" | "card" | "upi">("cash");
   const [showUpi, setShowUpi] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [emailModal, setEmailModal] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const { data: features } = useMerchantFeatures();
 
   // Weighed-item prompt: either a fresh add or editing an existing line.
   type WeighedPrompt =
@@ -395,14 +403,16 @@ export default function Register() {
         }
       }
 
-      return { number: orderNumber, total: grandTotal };
+      return { id: orderId, number: orderNumber, total: grandTotal };
     },
     onSuccess: (res) => {
       setConfirmation(`✓ Sold #${res.number} · ${fmt(res.total)}`);
+      setLastOrderId(res.id);
       setLines([]);
       setQuery("");
       setPayType("cash");
-      // Auto-hide the banner so it doesn't linger forever.
+      // Auto-hide the banner so it doesn't linger forever. We keep lastOrderId
+      // around so the "Email receipt" button stays usable a bit longer.
       setTimeout(() => setConfirmation(null), 4000);
       refocusScan();
     },
@@ -426,8 +436,16 @@ export default function Register() {
         <Text className="mb-2 text-2xl font-bold">Register</Text>
 
         {confirmation ? (
-          <View className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <View className="mb-3 flex-row items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <Text className="text-sm font-semibold text-emerald-700">{confirmation}</Text>
+            {features?.email_receipts && lastOrderId ? (
+              <Pressable
+                onPress={() => { setEmailDraft(""); setEmailMsg(null); setEmailModal(true); }}
+                className="rounded-lg bg-emerald-600 px-3 py-1.5"
+              >
+                <Text className="text-xs font-semibold text-white">Email receipt</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -781,6 +799,52 @@ export default function Register() {
             />
           </View>
         </View>
+      </Modal>
+
+      {/* Email receipt modal — opened from the post-sale confirmation banner. */}
+      <Modal visible={emailModal} animationType="fade" transparent onRequestClose={() => setEmailModal(false)}>
+        <Pressable onPress={() => setEmailModal(false)} className="flex-1 items-center justify-center bg-slate-900/40 px-6">
+          <Pressable className="w-full max-w-md rounded-2xl bg-white p-5">
+            <Text className="mb-3 text-lg font-bold">Email receipt</Text>
+            <TextInput
+              value={emailDraft}
+              onChangeText={setEmailDraft}
+              placeholder="customer@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoFocus
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            {emailMsg ? (
+              <Text className={`mt-2 text-sm ${emailMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{emailMsg.text}</Text>
+            ) : null}
+            <View className="mt-4 flex-row justify-end gap-2">
+              <Pressable onPress={() => setEmailModal(false)} className="rounded-lg px-3 py-2">
+                <Text className="text-sm font-semibold text-slate-500">Close</Text>
+              </Pressable>
+              <Pressable
+                disabled={emailSending || !lastOrderId || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim())}
+                onPress={async () => {
+                  if (!lastOrderId) return;
+                  setEmailSending(true);
+                  setEmailMsg(null);
+                  const r = await sendReceiptEmail({ orderId: lastOrderId, email: emailDraft.trim() });
+                  setEmailSending(false);
+                  if (r.ok) {
+                    setEmailMsg({ ok: true, text: "Sent." });
+                    setTimeout(() => setEmailModal(false), 800);
+                  } else {
+                    setEmailMsg({ ok: false, text: r.error });
+                  }
+                }}
+                className="rounded-lg px-3 py-2"
+                style={{ backgroundColor: brand, opacity: emailSending ? 0.5 : 1 }}
+              >
+                <Text className="text-sm font-semibold text-white">{emailSending ? "Sending…" : "Send"}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </ScreenContainer>
   );

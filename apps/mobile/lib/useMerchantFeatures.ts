@@ -7,9 +7,20 @@ export interface MerchantFeatures {
   kiosk: boolean;
   kds: boolean;
   admin: boolean;
+  email_receipts: boolean;
+  print_receipts: boolean;
+  sms_receipts: boolean;
 }
 
-const DEFAULTS: MerchantFeatures = { pos: true, kiosk: true, kds: true, admin: true };
+const DEFAULTS: MerchantFeatures = {
+  pos: true,
+  kiosk: true,
+  kds: true,
+  admin: true,
+  email_receipts: true,
+  print_receipts: true,
+  sms_receipts: false,
+};
 
 /** Per-merchant feature switches set by the platform super-admin. */
 export function useMerchantFeatures() {
@@ -20,7 +31,7 @@ export function useMerchantFeatures() {
     queryFn: async (): Promise<MerchantFeatures> => {
       const { data, error } = await (supabase as any)
         .from("merchant_features")
-        .select("pos, kiosk, kds, admin")
+        .select("pos, kiosk, kds, admin, email_receipts, print_receipts, sms_receipts")
         .eq("merchant_id", merchantId)
         .maybeSingle();
       if (error) throw error;
