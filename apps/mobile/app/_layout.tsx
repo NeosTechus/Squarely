@@ -2,16 +2,26 @@ import "../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { Providers } from "@/components/Providers";
 import { useBootMode } from "@/store/boot";
 import { useImpersonation } from "@/lib/impersonation";
+
+// Keep the branded splash up until our two AsyncStorage hydrations finish, so
+// cold start shows the splash instead of flashing a blank screen / spinner.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const hydrate = useBootMode((s) => s.hydrate);
   const hydrateImpersonation = useImpersonation((s) => s.hydrate);
   useEffect(() => {
-    hydrate();
-    hydrateImpersonation();
+    (async () => {
+      try {
+        await Promise.all([hydrate(), hydrateImpersonation()]);
+      } finally {
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    })();
   }, [hydrate, hydrateImpersonation]);
   return (
     <Providers>
