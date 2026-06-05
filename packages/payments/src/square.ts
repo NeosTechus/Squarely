@@ -73,14 +73,17 @@ export class SquareProvider implements PaymentProvider {
     return { ok: res.ok };
   }
 
-  async refund(paymentId: string, amountCents: number) {
+  async refund(paymentId: string, amountCents: number, currency?: string) {
+    if (!currency) {
+      return { ok: false, error: "Square refund requires the original payment currency." };
+    }
     const res = await fetch(`${this.base()}/v2/refunds`, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify({
         idempotency_key: `${paymentId}-${Date.now()}`,
         payment_id: paymentId,
-        amount_money: { amount: amountCents, currency: "USD" },
+        amount_money: { amount: amountCents, currency },
       }),
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };

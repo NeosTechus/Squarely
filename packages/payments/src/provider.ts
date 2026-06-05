@@ -25,5 +25,12 @@ export interface PaymentProvider {
   publishSale(input: PublishSaleInput): Promise<PublishSaleResult>;
   checkStatus(pollToken: string, opts?: { merchantId: string; terminalId: string }): Promise<PaymentStatus>;
   cancel(pollToken: string, opts?: { merchantId: string; terminalId: string }): Promise<{ ok: boolean }>;
-  refund(paymentId: string, amountCents: number): Promise<{ ok: boolean; refund_id?: string; error?: string }>;
+  /**
+   * Refund a payment. `currency` should be the originating order/payment
+   * currency (ISO-4217). It is optional only so adapters whose upstream API
+   * derives the currency from the original payment (Stripe, Valor) can ignore
+   * it — adapters that send the currency in the request body MUST require it
+   * at the call site and never default to a hardcoded value like "USD".
+   */
+  refund(paymentId: string, amountCents: number, currency?: string): Promise<{ ok: boolean; refund_id?: string; error?: string }>;
 }
