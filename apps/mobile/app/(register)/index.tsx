@@ -345,16 +345,30 @@ export default function Register() {
       const paymentMethod = payType; // "cash" | "card" | "upi"
       const isCard = paymentMethod === "card";
 
-      const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", {
-        p_merchant_id: merchantId,
-      });
-      if (numErr) throw numErr;
+      // Atomic write: orders + order_items in a single transaction. Weighed
+      // lines collapse to quantity=1 with the line total as unit_price_cents
+      // and a descriptive name_snapshot — `quantity` is an integer column so
+      // this is the cleanest way to preserve the sale total while keeping a
+      // per-line audit trail. Register has no modifiers, so we omit them.
+      const p_items = lines.map((l) =>
+        l.kind === "count"
+          ? {
+              item_id: l.itemId,
+              name_snapshot: l.name,
+              unit_price_cents: l.unitPriceCents,
+              quantity: l.qty,
+            }
+          : {
+              item_id: l.itemId,
+              name_snapshot: weighedSnapshot(l),
+              unit_price_cents: weighedLineTotal(l),
+              quantity: 1,
+            },
+      );
 
-      const { data: order, error: orderErr } = await (supabase as any)
-        .from("orders")
-        .insert({
-          merchant_id: merchantId,
-          number: num as number,
+      const { data, error: rpcErr } = await (supabase as any).rpc("create_order_with_items", {
+        p_merchant_id: merchantId,
+        p_order: {
           source: "pos",
           order_type: "take_out",
           status: "completed",
@@ -366,41 +380,13 @@ export default function Register() {
           // record the sale as 'unpaid' until the cashier confirms on the device —
           // no chargeOnTerminal call here (unlike the cafe POS).
           payment_status: isCard ? "unpaid" : "paid",
-        })
-        .select("id, number")
-        .single();
-      if (orderErr) throw orderErr;
-      const orderId = (order as any).id as string;
-      const orderNumber = (order as any).number as number;
-
-      for (const l of lines) {
-        if (l.kind === "count") {
-          const { error: itemsErr } = await (supabase as any)
-            .from("order_items")
-            .insert({
-              order_id: orderId,
-              item_id: l.itemId,
-              name_snapshot: l.name,
-              unit_price_cents: l.unitPriceCents,
-              quantity: l.qty,
-            });
-          if (itemsErr) throw itemsErr;
-        } else {
-          // Weighed lines collapse to qty=1 with the computed line total as the
-          // unit price — `quantity` is an integer column so this is the cleanest
-          // way to preserve the sale total while keeping a per-line audit trail.
-          const { error: itemsErr } = await (supabase as any)
-            .from("order_items")
-            .insert({
-              order_id: orderId,
-              item_id: l.itemId,
-              name_snapshot: weighedSnapshot(l),
-              unit_price_cents: weighedLineTotal(l),
-              quantity: 1,
-            });
-          if (itemsErr) throw itemsErr;
-        }
-      }
+        },
+        p_items,
+      });
+      if (rpcErr) throw rpcErr;
+      const row = Array.isArray(data) ? data[0] : data;
+      const orderId = row.order_id as string;
+      const orderNumber = row.order_number as number;
 
       return { id: orderId, number: orderNumber, total: grandTotal };
     },

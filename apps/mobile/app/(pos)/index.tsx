@@ -254,13 +254,14 @@ export default function Pos() {
         orderId = settling.id;
         orderNumber = settling.number;
       } else {
-        const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", { p_merchant_id: merchantId });
-        if (numErr) throw numErr;
-        const { data: order, error: orderErr } = await (supabase as any)
-          .from("orders")
-          .insert({
-            merchant_id: merchantId,
-            number: num as number,
+        // Atomic write: the RPC inserts orders + order_items + order_item_modifiers
+        // in a single transaction so a partial sale can't be left behind if any
+        // line/modifier insert fails. The function also allocates the next order
+        // number for the merchant on the server, replacing the prior client-side
+        // next_order_number call.
+        const { data, error: rpcErr } = await (supabase as any).rpc("create_order_with_items", {
+          p_merchant_id: merchantId,
+          p_order: {
             source: "pos",
             order_type: "take_out",
             status: "completed",
@@ -271,35 +272,24 @@ export default function Pos() {
             payment_method: paymentMethod,
             // Card and split orders stay "unpaid" until the reader confirms; cash/upi paid immediately.
             payment_status: needsReader ? "unpaid" : "paid",
-          })
-          .select("id, number")
-          .single();
-        if (orderErr) throw orderErr;
-        orderId = (order as any).id;
-        orderNumber = (order as any).number;
-        // Insert each line individually so we can map the returned order_item id
-        // back to its source line and persist that line's chosen modifiers.
-        for (const l of lines) {
-          const { data: oi, error: itemsErr } = await (supabase as any)
-            .from("order_items")
-            .insert({ order_id: orderId, item_id: l.item_id, name_snapshot: l.name, unit_price_cents: l.unit_price_cents, quantity: l.quantity })
-            .select("id")
-            .single();
-          if (itemsErr) throw itemsErr;
-          if (l.modifiers.length > 0) {
-            const orderItemId = (oi as any).id;
-            const { error: modsErr } = await (supabase as any).from("order_item_modifiers").insert(
-              l.modifiers.map((m) => ({
-                order_item_id: orderItemId,
-                modifier_group_id: m.group_id,
-                modifier_option_id: m.id,
-                name_snapshot: m.name,
-                price_delta_cents: m.price_delta_cents,
-              })),
-            );
-            if (modsErr) throw modsErr;
-          }
-        }
+          },
+          p_items: lines.map((l) => ({
+            item_id: l.item_id,
+            name_snapshot: l.name,
+            unit_price_cents: l.unit_price_cents,
+            quantity: l.quantity,
+            modifiers: l.modifiers.map((m) => ({
+              modifier_group_id: m.group_id,
+              modifier_option_id: m.id,
+              name_snapshot: m.name,
+              price_delta_cents: m.price_delta_cents,
+            })),
+          })),
+        });
+        if (rpcErr) throw rpcErr;
+        const row = Array.isArray(data) ? data[0] : data;
+        orderId = row.order_id as string;
+        orderNumber = row.order_number as number;
       }
 
       if (needsReader) {

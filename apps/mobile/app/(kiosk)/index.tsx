@@ -228,13 +228,11 @@ export default function Kiosk() {
       if (!merchantId) throw new Error("No active merchant.");
       if (lines.length === 0) throw new Error("Add something first.");
       const paid = payChoice === "card";
-      const { data: num, error: numErr } = await (supabase as any).rpc("next_order_number", { p_merchant_id: merchantId });
-      if (numErr) throw numErr;
-      const { data: order, error: orderErr } = await (supabase as any)
-        .from("orders")
-        .insert({
-          merchant_id: merchantId,
-          number: num as number,
+      // Atomic write: orders + order_items + order_item_modifiers all in one
+      // transaction. The RPC also allocates the next order number server-side.
+      const { data, error: rpcErr } = await (supabase as any).rpc("create_order_with_items", {
+        p_merchant_id: merchantId,
+        p_order: {
           source: "kiosk",
           order_type: orderType,
           status: "received",
@@ -244,41 +242,23 @@ export default function Kiosk() {
           total_cents: subtotal + tax + tipCents,
           payment_method: paid ? "card" : null,
           payment_status: paid ? "paid" : "unpaid",
-        })
-        .select("id, number")
-        .single();
-      if (orderErr) throw orderErr;
-      const created = order as { id: string; number: number };
-      // Insert items one-by-one so we can capture each order_item id and attach
-      // its chosen modifiers. Carts are small, so the extra round-trips are fine.
-      for (const l of lines) {
-        const { data: oi, error: itemErr } = await (supabase as any)
-          .from("order_items")
-          .insert({
-            order_id: created.id,
-            item_id: l.item_id,
-            name_snapshot: l.name,
-            unit_price_cents: lineUnit(l),
-            quantity: l.qty,
-          })
-          .select("id")
-          .single();
-        if (itemErr) throw itemErr;
-        if (l.modifiers?.length) {
-          const orderItemId = (oi as { id: string }).id;
-          const { error: modErr } = await (supabase as any).from("order_item_modifiers").insert(
-            l.modifiers.map((m) => ({
-              order_item_id: orderItemId,
-              modifier_group_id: m.group_id,
-              modifier_option_id: m.id,
-              name_snapshot: m.name,
-              price_delta_cents: m.price_delta_cents,
-            })),
-          );
-          if (modErr) throw modErr;
-        }
-      }
-      return created.number;
+        },
+        p_items: lines.map((l) => ({
+          item_id: l.item_id,
+          name_snapshot: l.name,
+          unit_price_cents: lineUnit(l),
+          quantity: l.qty,
+          modifiers: (l.modifiers ?? []).map((m) => ({
+            modifier_group_id: m.group_id,
+            modifier_option_id: m.id,
+            name_snapshot: m.name,
+            price_delta_cents: m.price_delta_cents,
+          })),
+        })),
+      });
+      if (rpcErr) throw rpcErr;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row.order_number as number;
     },
     onSuccess: (number) => {
       setReceipt({
