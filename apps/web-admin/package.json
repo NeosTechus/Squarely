@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@squarely/api-client": "workspace:*",
     "@squarely/auth": "workspace:*",
     "@squarely/billing": "workspace:*",
     "@squarely/db": "workspace:*",

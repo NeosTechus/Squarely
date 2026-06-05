@@ -6,7 +6,6 @@ const nextConfig = {
     "@squarely/types",
     "@squarely/auth",
     "@squarely/db",
-    "@squarely/api-client",
     "@squarely/feature-flags",
     "@squarely/billing",
     "@squarely/payments",

@@ -192,8 +192,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Best-effort: stamp receipt_printed_at on the order (we treat email as a
-  // form of receipt delivery for the dashboard).
-  void (svc as any).from("orders").update({ receipt_printed_at: new Date().toISOString() }).eq("id", orderId);
+  // form of receipt delivery for the dashboard). supabase-js v2 builders are
+  // thenable-only — must await to actually fire the update.
+  await (svc as any).from("orders").update({ receipt_printed_at: new Date().toISOString() }).eq("id", orderId);
 
   return NextResponse.json({ ok: true });
 }

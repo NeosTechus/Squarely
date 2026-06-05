@@ -18,6 +18,9 @@ interface OrderRow {
 
 const fmt = (c: number) => `$${(c / 100).toFixed(2)}`;
 const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+// E.164-ish: optional +, first digit 1–9, then 6–15 more digits, after we strip
+// formatting characters. Matches the server-side validation.
+const isPhone = (s: string) => /^\+?[1-9]\d{6,15}$/.test(s.replace(/[\s\-()]/g, ""));
 
 export default function Orders() {
   const qc = useQueryClient();
@@ -32,17 +35,24 @@ export default function Orders() {
   const [emailDraft, setEmailDraft] = useState("");
   const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [smsTarget, setSmsTarget] = useState<OrderRow | null>(null);
+  const [smsDraft, setSmsDraft] = useState("");
+  const [smsMsg, setSmsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [smsSending, setSmsSending] = useState(false);
 
   const { data: features } = useQuery({
     enabled: Boolean(merchantId),
     queryKey: ["merchant-features-flags", merchantId],
-    queryFn: async (): Promise<{ email_receipts: boolean }> => {
+    queryFn: async (): Promise<{ email_receipts: boolean; sms_receipts: boolean }> => {
       const { data } = await supabase
         .from("merchant_features")
-        .select("email_receipts")
+        .select("email_receipts, sms_receipts")
         .eq("merchant_id", merchantId)
         .maybeSingle();
-      return { email_receipts: (data?.email_receipts as boolean | undefined) ?? true };
+      return {
+        email_receipts: (data?.email_receipts as boolean | undefined) ?? true,
+        sms_receipts: (data?.sms_receipts as boolean | undefined) ?? false,
+      };
     },
   });
 
@@ -74,6 +84,37 @@ export default function Orders() {
       setTimeout(() => setEmailTarget(null), 800);
     } else {
       setEmailMsg({ ok: false, text: body.error ?? `HTTP ${res.status}` });
+    }
+  };
+
+  const openSms = (o: OrderRow) => {
+    setSmsTarget(o);
+    setSmsDraft("");
+    setSmsMsg(null);
+  };
+  const sendSms = async () => {
+    if (!smsTarget) return;
+    setSmsSending(true);
+    setSmsMsg(null);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      setSmsSending(false);
+      setSmsMsg({ ok: false, text: "Not signed in." });
+      return;
+    }
+    const res = await fetch("/api/receipts/sms", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: smsTarget.id, phone: smsDraft.trim() }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+    setSmsSending(false);
+    if (res.ok && body.ok) {
+      setSmsMsg({ ok: true, text: "Sent." });
+      setTimeout(() => setSmsTarget(null), 800);
+    } else {
+      setSmsMsg({ ok: false, text: body.error ?? `HTTP ${res.status}` });
     }
   };
 
@@ -156,6 +197,14 @@ export default function Orders() {
                             Email
                           </button>
                         ) : null}
+                        {features?.sms_receipts ? (
+                          <button
+                            onClick={() => openSms(o)}
+                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                          >
+                            SMS
+                          </button>
+                        ) : null}
                         {voided ? (
                           <span className="text-xs text-slate-400">voided</span>
                         ) : (
@@ -206,6 +255,14 @@ export default function Orders() {
                           className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                         >
                           Email
+                        </button>
+                      ) : null}
+                      {features?.sms_receipts ? (
+                        <button
+                          onClick={() => openSms(o)}
+                          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        >
+                          SMS
                         </button>
                       ) : null}
                       {voided ? (
@@ -267,6 +324,46 @@ export default function Orders() {
                 className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {emailSending ? "Sending…" : "Send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {smsTarget ? (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4"
+          onClick={() => setSmsTarget(null)}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-1 text-lg font-bold">SMS receipt</h3>
+            <p className="mb-3 text-xs text-slate-500">
+              Send the receipt for order #{smsTarget.number} ({fmt(smsTarget.total_cents)}) to:
+            </p>
+            <input
+              type="tel"
+              autoFocus
+              value={smsDraft}
+              onChange={(e) => setSmsDraft(e.target.value)}
+              placeholder="+15551234567"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:outline-none"
+            />
+            {smsMsg ? (
+              <p className={`mt-2 text-sm ${smsMsg.ok ? "text-emerald-600" : "text-red-600"}`}>{smsMsg.text}</p>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setSmsTarget(null)}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={sendSms}
+                disabled={smsSending || !isPhone(smsDraft.trim())}
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {smsSending ? "Sending…" : "Send"}
               </button>
             </div>
           </div>

@@ -78,9 +78,6 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: ^2.1.0
         version: 2.2.0(react-native@0.76.5(@babel/core@7.29.0)(@babel/preset-env@7.29.5(@babel/core@7.29.0))(@types/react@18.3.28)(react@18.3.1))
-      '@squarely/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@squarely/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -211,9 +208,6 @@ importers:
 
   apps/web-admin:
     dependencies:
-      '@squarely/api-client':
-        specifier: workspace:*
-        version: link:../../packages/api-client
       '@squarely/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -287,34 +281,6 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19(yaml@2.9.0)
-      typescript:
-        specifier: ^5.6.3
-        version: 5.9.3
-
-  packages/api-client:
-    dependencies:
-      '@squarely/db':
-        specifier: workspace:*
-        version: link:../db
-      '@squarely/types':
-        specifier: workspace:*
-        version: link:../types
-      '@supabase/supabase-js':
-        specifier: ^2.46.1
-        version: 2.105.4
-    devDependencies:
-      '@squarely/config':
-        specifier: workspace:*
-        version: link:../config
-      '@tanstack/react-query':
-        specifier: ^5.59.0
-        version: 5.100.10(react@18.3.1)
-      '@types/react':
-        specifier: ^18.3.12
-        version: 18.3.28
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
