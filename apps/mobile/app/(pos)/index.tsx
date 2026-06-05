@@ -6,7 +6,9 @@ import { useCart } from "@/store/cart";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
+import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { chargeOnTerminal } from "@/lib/terminalCharge";
+import { sendReceiptEmail } from "@/lib/sendReceipt";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { OrderRow } from "@/components/OrderRow";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
@@ -62,6 +64,13 @@ export default function Pos() {
 
   // Receipt shown after a completed charge (snapshotted before the cart clears).
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  // The order id that backs the active receipt — needed for emailing.
+  const [receiptOrderId, setReceiptOrderId] = useState<string | null>(null);
+  // Inline email-receipt UX state.
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const { data: features } = useMerchantFeatures();
 
   // Payment: cash / card / split / upi. For split, the cashier enters the cash part.
   type PayType = "cash" | "card" | "split" | "upi";
@@ -331,10 +340,13 @@ export default function Pos() {
         paymentLabel: `Paid · ${paymentMethod}`,
       };
 
-      return { number: orderNumber, receipt: receiptData };
+      return { id: orderId, number: orderNumber, receipt: receiptData };
     },
     onSuccess: (res) => {
       setReceipt(res.receipt);
+      setReceiptOrderId(res.id);
+      setEmailDraft("");
+      setEmailMsg(null);
       cart.clear();
       setSettling(null);
       setSplitCash("");
@@ -650,12 +662,46 @@ export default function Pos() {
           </View>
           <ScrollView contentContainerStyle={{ padding: 16 }}>
             {receipt ? <Receipt data={receipt} /> : null}
+            {features?.email_receipts && receiptOrderId ? (
+              <View className="mt-4 rounded-2xl border border-slate-200 p-3">
+                <Text className="mb-2 text-xs uppercase tracking-wide text-slate-500">Email receipt</Text>
+                <View className="flex-row items-center gap-2">
+                  <TextInput
+                    value={emailDraft}
+                    onChangeText={setEmailDraft}
+                    placeholder="customer@example.com"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <Pressable
+                    disabled={emailSending || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailDraft.trim())}
+                    onPress={async () => {
+                      setEmailSending(true);
+                      setEmailMsg(null);
+                      const r = await sendReceiptEmail({ orderId: receiptOrderId, email: emailDraft.trim() });
+                      setEmailSending(false);
+                      setEmailMsg(r.ok ? { ok: true, text: "Sent." } : { ok: false, text: r.error });
+                    }}
+                    className="rounded-lg bg-brand-600 px-3 py-2 disabled:opacity-50"
+                    style={{ backgroundColor: brand }}
+                  >
+                    <Text className="text-sm font-semibold text-white">{emailSending ? "…" : "Send"}</Text>
+                  </Pressable>
+                </View>
+                {emailMsg ? (
+                  <Text className={`mt-2 text-xs ${emailMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                    {emailMsg.text}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
             <Button
               label="New sale"
               size="lg"
               className="mt-4"
               style={{ backgroundColor: brand }}
-              onPress={() => setReceipt(null)}
+              onPress={() => { setReceipt(null); setReceiptOrderId(null); }}
             />
           </ScrollView>
         </View>
