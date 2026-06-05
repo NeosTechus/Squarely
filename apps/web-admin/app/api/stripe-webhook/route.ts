@@ -18,10 +18,11 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(raw, sig, secret);
   } catch (err) {
-    return NextResponse.json(
-      { error: "invalid-signature", details: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
-    );
+    // Don't echo internal signature-mismatch detail back to the caller. The
+    // error code is enough for legit Stripe to retry; ops can diagnose via
+    // server logs.
+    console.error("[stripe-webhook] signature check failed", err);
+    return NextResponse.json({ error: "invalid-signature" }, { status: 400 });
   }
 
   const supabase = getServiceSupabase();

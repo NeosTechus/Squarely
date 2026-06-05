@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
 import { getTerminalProvider } from "@squarely/payments";
+import { safeErrorMessage } from "@/lib/redact";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * Poll a terminal charge. On success, marks the order paid (server-side).
@@ -18,6 +20,18 @@ export async function POST(req: NextRequest) {
     const svc = getServiceSupabase() as any;
     const { data: u } = await svc.auth.getUser(token);
     if (!u?.user) return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+
+    // Per-user rate limit: this endpoint is polled by the POS UI while a
+    // terminal sale resolves, so the budget is generous (120/min ≈ every
+    // 0.5s) but still catches stuck clients polling in a tight loop. Placed
+    // after auth and before the authorization lookups.
+    const rl = checkRateLimit(`payments/status:${u.user.id}`, 120, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { ok: false, error: "Rate limit exceeded. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec ?? 1) } },
+      );
+    }
 
     const [{ data: admin }, { data: member }] = await Promise.all([
       svc.from("platform_admins").select("user_id").eq("user_id", u.user.id).maybeSingle(),
@@ -47,6 +61,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, status: st.status, masked_pan: st.masked_pan, card_brand: st.card_brand });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    // Same hardening as payments/start: never forward raw adapter/DB messages.
+    console.error("[payments/status]", e);
+    return NextResponse.json(
+      { ok: false, error: safeErrorMessage(e, "Failed to check payment status.") },
+      { status: 500 },
+    );
   }
 }

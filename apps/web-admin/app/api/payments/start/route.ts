@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
 import { getTerminalProvider } from "@squarely/payments";
+import { safeErrorMessage } from "@/lib/redact";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * Begin a card-present terminal charge for an existing order. Loads the
@@ -21,6 +23,18 @@ export async function POST(req: NextRequest) {
     const svc = getServiceSupabase() as any;
     const { data: u } = await svc.auth.getUser(token);
     if (!u?.user) return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+
+    // Per-user rate limit: bounds runaway tap-loops since this triggers a real
+    // terminal sale. 60/min is generous for legitimate POS use. Placed after
+    // auth (anon traffic 401s first) and before the authorization lookups so
+    // a throttled caller does not hit Supabase.
+    const rl = checkRateLimit(`payments/start:${u.user.id}`, 60, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { ok: false, error: "Rate limit exceeded. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec ?? 1) } },
+      );
+    }
 
     // Authorize: platform admin or active member of the merchant.
     const [{ data: admin }, { data: member }] = await Promise.all([
@@ -55,6 +69,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...result, provider: chosen.provider });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    // Avoid leaking adapter/Supabase internals (constraint text, bearer-shaped
+    // tokens, etc.) to the client. Full detail still lands in server logs.
+    console.error("[payments/start]", e);
+    return NextResponse.json(
+      { ok: false, error: safeErrorMessage(e, "Failed to start payment.") },
+      { status: 500 },
+    );
   }
 }
