@@ -19,6 +19,7 @@ import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { useMerchantTax } from "@/lib/useMerchantTax";
 import { sendReceiptEmail, sendReceiptSms } from "@/lib/sendReceipt";
+import { sendReceiptPrint } from "@/lib/sendReceiptPrint";
 import { UpiQr, buildUpiUri } from "@/components/UpiQr";
 
 interface RegisterItem {
@@ -82,7 +83,29 @@ export default function Register() {
   const [smsDraft, setSmsDraft] = useState("");
   const [smsSending, setSmsSending] = useState(false);
   const [smsMsg, setSmsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Print is a single-press dispatch (no input); we just need an in-flight flag
+  // and a transient toast-style banner. Result is shown in the confirmation row
+  // until the auto-hide timeout fires.
+  const [printSending, setPrintSending] = useState(false);
+  const [printMsg, setPrintMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const { data: features } = useMerchantFeatures();
+
+  // Has an enabled printer registered for this merchant? Mirrors the POS query
+  // so the Print pill only shows when there's actually a target.
+  const { data: hasPrinter = false } = useQuery({
+    enabled: Boolean(merchantId) && (features?.print_receipts ?? false),
+    queryKey: ["register-has-printer", merchantId],
+    queryFn: async (): Promise<boolean> => {
+      const { data } = await (supabase as any)
+        .from("printers")
+        .select("id")
+        .eq("merchant_id", merchantId)
+        .eq("active", true)
+        .limit(1)
+        .maybeSingle();
+      return Boolean(data?.id);
+    },
+  });
 
   // Weighed-item prompt: either a fresh add or editing an existing line.
   type WeighedPrompt =
@@ -443,7 +466,34 @@ export default function Register() {
                   <Text className="text-xs font-semibold text-white">SMS receipt</Text>
                 </Pressable>
               ) : null}
+              {features?.print_receipts && lastOrderId && hasPrinter ? (
+                <Pressable
+                  disabled={printSending}
+                  onPress={async () => {
+                    if (!lastOrderId) return;
+                    setPrintSending(true);
+                    setPrintMsg(null);
+                    const r = await sendReceiptPrint({ orderId: lastOrderId });
+                    setPrintSending(false);
+                    setPrintMsg(r.ok ? { ok: true, text: "Printing." } : { ok: false, text: r.error });
+                    // Clear the message after 3s so it doesn't linger past the banner.
+                    setTimeout(() => setPrintMsg(null), 3000);
+                  }}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 disabled:opacity-50"
+                >
+                  <Text className="text-xs font-semibold text-white">
+                    {printSending ? "Printing…" : "Print receipt"}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
+          </View>
+        ) : null}
+        {printMsg ? (
+          <View className={`mb-3 rounded-xl border px-4 py-2 ${printMsg.ok ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
+            <Text className={`text-xs font-medium ${printMsg.ok ? "text-emerald-700" : "text-red-700"}`}>
+              {printMsg.text}
+            </Text>
           </View>
         ) : null}
 

@@ -8,6 +8,7 @@ import { useActiveMerchant } from "@/lib/useActiveMerchant";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
 import { useKioskConfig } from "@/lib/useKioskConfig";
 import { useMerchantTax } from "@/lib/useMerchantTax";
+import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 import { Receipt, type ReceiptData } from "@/components/Receipt";
 import { ModifierSheet, type SelectedModifier } from "@/components/ModifierSheet";
 
@@ -65,6 +66,12 @@ export default function Kiosk() {
   const brand = useMerchantTheme();
   const kiosk = useKioskConfig();
   const { taxCents: computeTax } = useMerchantTax();
+  const { data: features } = useMerchantFeatures();
+  // Per-merchant gates with default-true semantics so kiosks behave normally
+  // for tenants whose merchant_features row pre-dates these columns.
+  const tipsEnabled = features?.tips_enabled ?? true;
+  const modifiersEnabled = features?.modifiers_enabled ?? true;
+  const openTabsEnabled = features?.open_tabs_enabled ?? true;
   const [payChoice, setPayChoice] = useState<PayChoice>("counter");
   const [modItem, setModItem] = useState<MenuItem | null>(null);
   const [showMods, setShowMods] = useState(false);
@@ -138,7 +145,10 @@ export default function Kiosk() {
 
   const subtotal = lines.reduce((s, l) => s + lineUnit(l) * l.qty, 0);
   const tax = computeTax(subtotal);
-  const grandTotal = subtotal + tax + tipCents;
+  // Force the effective tip to 0 whenever tips are disabled so stale state
+  // can't leak into totals, the summary row, or the order RPC payload.
+  const effectiveTip = tipsEnabled ? tipCents : 0;
+  const grandTotal = subtotal + tax + effectiveTip;
   const cartCount = lines.reduce((s, l) => s + l.qty, 0);
   // For the stepper on the menu cards we only reflect quantity of the plain
   // (no-modifier) line for an item; modified lines are tracked separately.
@@ -152,8 +162,10 @@ export default function Kiosk() {
     ]);
 
   const add = (it: MenuItem) => {
-    // Items with modifier groups open the picker instead of adding directly.
-    if (it.modifier_group_ids?.length) {
+    // Items with modifier groups open the picker instead of adding directly,
+    // unless the merchant has the modifiers feature turned off — in that case
+    // the item just stacks onto its plain line at the base price.
+    if (modifiersEnabled && it.modifier_group_ids?.length) {
       setModItem(it);
       setShowMods(true);
       return;
@@ -193,7 +205,7 @@ export default function Kiosk() {
   // appends a fresh line carrying the chosen modifiers.
   const modSheet = (
     <ModifierSheet
-      visible={showMods}
+      visible={showMods && modifiersEnabled}
       item={modItem}
       brand={brand}
       onClose={() => setShowMods(false)}
@@ -223,6 +235,19 @@ export default function Kiosk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  // If open tabs are disabled, never leave the cashier-collected "counter"
+  // option selected — the POS Open Orders queue is hidden for that merchant
+  // and the order would be uncollectable. Force the card path instead.
+  useEffect(() => {
+    if (!openTabsEnabled && payChoice === "counter") setPayChoice("card");
+  }, [openTabsEnabled, payChoice]);
+
+  // If tips get toggled off mid-session, drop any pending tip from local state
+  // so the totals shown to the customer stay consistent with the gate.
+  useEffect(() => {
+    if (!tipsEnabled && tipCents !== 0) setTipCents(0);
+  }, [tipsEnabled, tipCents]);
+
   const placeOrder = useMutation({
     mutationFn: async () => {
       if (!merchantId) throw new Error("No active merchant.");
@@ -238,8 +263,8 @@ export default function Kiosk() {
           status: "received",
           subtotal_cents: subtotal,
           tax_cents: tax,
-          tip_cents: tipCents,
-          total_cents: subtotal + tax + tipCents,
+          tip_cents: effectiveTip,
+          total_cents: subtotal + tax + effectiveTip,
           payment_method: paid ? "card" : null,
           payment_status: paid ? "paid" : "unpaid",
         },
@@ -265,8 +290,8 @@ export default function Kiosk() {
         lines,
         subtotal,
         taxCents: tax,
-        tipCents,
-        totalCents: subtotal + tax + tipCents,
+        tipCents: effectiveTip,
+        totalCents: subtotal + tax + effectiveTip,
         orderType,
         paid: payChoice === "card",
       });
@@ -465,13 +490,20 @@ export default function Kiosk() {
             )}
           />
           <View className="border-t border-slate-200 pt-3">
-            {/* how to pay */}
+            {/* how to pay — "Pay at counter" creates the unpaid order the POS
+                Open Orders queue picks up; if that queue is disabled for this
+                merchant we hide the option so kiosk orders can't go uncollected. */}
             <Text className="mb-2 text-sm font-semibold text-slate-500">How would you like to pay?</Text>
             <View className="mb-3 flex-row gap-3">
-              {([
-                { key: "counter", emoji: "🧑‍💼", label: "Pay at counter" },
-                { key: "card", emoji: "💳", label: "Pay by card" },
-              ] as const).map((opt) => {
+              {(openTabsEnabled
+                ? ([
+                    { key: "counter", emoji: "🧑‍💼", label: "Pay at counter" },
+                    { key: "card", emoji: "💳", label: "Pay by card" },
+                  ] as const)
+                : ([
+                    { key: "card", emoji: "💳", label: "Pay by card" },
+                  ] as const)
+              ).map((opt) => {
                 const sel = payChoice === opt.key;
                 return (
                   <Pressable
@@ -486,36 +518,40 @@ export default function Kiosk() {
                 );
               })}
             </View>
-            {/* tip */}
-            <Text className="mb-2 text-sm font-semibold text-slate-500">Add a tip?</Text>
-            <View className="mb-3 flex-row gap-3">
-              {([
-                { label: "No tip", pct: 0 },
-                { label: "10%", pct: 10 },
-                { label: "15%", pct: 15 },
-                { label: "20%", pct: 20 },
-              ] as const).map((opt) => {
-                const amount = Math.round((subtotal * opt.pct) / 100);
-                const sel = tipCents === amount;
-                return (
-                  <Pressable
-                    key={opt.label}
-                    onPress={() => setTipCents(amount)}
-                    className="flex-1 items-center rounded-2xl border-2 py-3"
-                    style={{ borderColor: sel ? brand : "#e2e8f0", backgroundColor: sel ? `${brand}14` : "#ffffff" }}
-                  >
-                    <Text className="text-sm font-semibold" style={{ color: sel ? brand : "#475569" }}>{opt.label}</Text>
-                    {opt.pct > 0 ? (
-                      <Text className="mt-0.5 text-xs" style={{ color: sel ? brand : "#94a3b8" }}>{fmt(amount)}</Text>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
+            {/* tip — hidden entirely when the merchant has tips disabled. */}
+            {tipsEnabled ? (
+              <>
+                <Text className="mb-2 text-sm font-semibold text-slate-500">Add a tip?</Text>
+                <View className="mb-3 flex-row gap-3">
+                  {([
+                    { label: "No tip", pct: 0 },
+                    { label: "10%", pct: 10 },
+                    { label: "15%", pct: 15 },
+                    { label: "20%", pct: 20 },
+                  ] as const).map((opt) => {
+                    const amount = Math.round((subtotal * opt.pct) / 100);
+                    const sel = tipCents === amount;
+                    return (
+                      <Pressable
+                        key={opt.label}
+                        onPress={() => setTipCents(amount)}
+                        className="flex-1 items-center rounded-2xl border-2 py-3"
+                        style={{ borderColor: sel ? brand : "#e2e8f0", backgroundColor: sel ? `${brand}14` : "#ffffff" }}
+                      >
+                        <Text className="text-sm font-semibold" style={{ color: sel ? brand : "#475569" }}>{opt.label}</Text>
+                        {opt.pct > 0 ? (
+                          <Text className="mt-0.5 text-xs" style={{ color: sel ? brand : "#94a3b8" }}>{fmt(amount)}</Text>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
             {/* totals */}
             <View className="flex-row justify-between"><Text className="text-base text-slate-500">Subtotal</Text><Text className="text-base text-slate-600">{fmt(subtotal)}</Text></View>
             {tax > 0 ? <View className="mt-1 flex-row justify-between"><Text className="text-base text-slate-500">Tax</Text><Text className="text-base text-slate-600">{fmt(tax)}</Text></View> : null}
-            {tipCents > 0 ? <View className="mt-1 flex-row justify-between"><Text className="text-base text-slate-500">Tip</Text><Text className="text-base text-slate-600">{fmt(tipCents)}</Text></View> : null}
+            {effectiveTip > 0 ? <View className="mt-1 flex-row justify-between"><Text className="text-base text-slate-500">Tip</Text><Text className="text-base text-slate-600">{fmt(effectiveTip)}</Text></View> : null}
             <View className="mt-2 flex-row justify-between border-t border-slate-200 pt-2"><Text className="text-xl font-bold">Total</Text><Text className="text-xl font-bold">{fmt(grandTotal)}</Text></View>
             <Pressable disabled={lines.length === 0 || placeOrder.isPending} onPress={() => placeOrder.mutate()} className="mt-4 items-center rounded-2xl py-4 active:opacity-90 disabled:opacity-40" style={{ backgroundColor: brand }}>
               <Text className="text-lg font-bold text-white">
@@ -533,7 +569,9 @@ export default function Kiosk() {
   // horizontal item card (text left, thumbnail right) — matches reference
   const ItemCard = ({ item }: { item: MenuItem }) => {
     const q = qtyFor(item.id);
-    const customizable = (item.modifier_group_ids?.length ?? 0) > 0;
+    // Only flag an item as "Customizable" when modifiers are actually offered —
+    // otherwise the badge promises an interaction that no longer exists.
+    const customizable = modifiersEnabled && (item.modifier_group_ids?.length ?? 0) > 0;
     return (
       <View className={`flex-1 rounded-2xl border bg-white p-3 ${q > 0 ? "border-brand-500" : "border-slate-200"}`} style={{ maxWidth: "48.5%" }}>
         <Pressable onPress={() => add(item)} className="flex-row items-center justify-between active:opacity-80">

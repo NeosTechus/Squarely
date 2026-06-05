@@ -223,6 +223,9 @@ importers:
       '@squarely/payments':
         specifier: workspace:*
         version: link:../../packages/payments
+      '@squarely/printing':
+        specifier: workspace:*
+        version: link:../../packages/printing
       '@squarely/types':
         specifier: workspace:*
         version: link:../../packages/types
