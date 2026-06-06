@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Squarely Android production certificate pinning.
+
+  Pins are SHA-256 hashes of the Subject Public Key Info (SPKI), NOT the
+  certificate body. SPKI pinning survives leaf-cert rotations as long as the
+  issuer keeps re-issuing against the same public key, which is the normal
+  case for both Vercel and Supabase.
+
+  Android refuses to enforce a <pin-set> with only one <pin> entry, so each
+  domain ships a primary pin AND a backup pin (typically the intermediate CA
+  or a staged next-key). See docs/security/mobile-cert-pinning.md for how to
+  extract the live hashes and the rotation runbook.
+
+  cleartextTrafficPermitted="false" in <base-config> blocks plain HTTP from
+  the app entirely — defense in depth, the app should never need it in prod.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+
+  <!-- Web admin (Vercel-hosted). Pins squarely-admin.vercel.app and any
+       sibling vercel.app host the app may reach. -->
+  <domain-config includeSubdomains="true">
+    <domain>vercel.app</domain>
+    <pin-set expiration="2027-12-31">
+      <pin digest="SHA-256">REPLACE_WITH_LIVE_HASH</pin>
+      <pin digest="SHA-256">REPLACE_WITH_LIVE_HASH</pin>
+    </pin-set>
+  </domain-config>
+
+  <!-- Supabase project host (REST, Auth, Realtime, Storage all share the
+       project subdomain). includeSubdomains covers
+       sdrvbavgematnhzsvhjd.supabase.co and any other *.supabase.co host. -->
+  <domain-config includeSubdomains="true">
+    <domain>supabase.co</domain>
+    <pin-set expiration="2027-12-31">
+      <pin digest="SHA-256">REPLACE_WITH_LIVE_HASH</pin>
+      <pin digest="SHA-256">REPLACE_WITH_LIVE_HASH</pin>
+    </pin-set>
+  </domain-config>
+</network-security-config>
