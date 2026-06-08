@@ -7,8 +7,16 @@ const config: ExpoConfig = {
   slug: "squarely",
   owner: "harshakolla90s-organization",
   scheme: "squarely",
-  version: "0.0.1",
-  orientation: "default",
+  // Bumped from 0.0.1 -> 0.1.0 for first public release. runtimeVersion policy
+  // is "appVersion", so the version string IS the OTA bucket: shipping at
+  // 0.0.1 forever would mean every release collides in the same bucket and a
+  // bad JS update can't be cleanly rolled forward. Bump on each native release.
+  version: "0.1.0",
+  // POS app is counter-mounted tablet first — lock to landscape so the register
+  // doesn't flip to portrait when an attendant tilts the device. supportsTablet
+  // is on for iOS; on phones this still allows landscape (which is fine for
+  // a tap-to-charge / receipt-print flow).
+  orientation: "landscape",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   newArchEnabled: true,
@@ -28,10 +36,15 @@ const config: ExpoConfig = {
     bundleIdentifier: IS_DEV ? "com.squarely.app.dev" : "com.squarely.app",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      NSCameraUsageDescription:
-        "Squarely uses your camera to scan barcodes for inventory lookup at the register.",
-      NSBluetoothAlwaysUsageDescription:
-        "Squarely connects to Bluetooth barcode scanners and card readers.",
+      // NSCameraUsageDescription and NSBluetoothAlwaysUsageDescription are
+      // intentionally OMITTED. Apple App Review flags unused usage strings:
+      //   - Barcode capture is keyboard-wedge (HID) only — no expo-camera in
+      //     the bundle and no BLE pairing. chargeOnTerminal() in
+      //     apps/mobile/lib/terminalCharge.ts routes through HTTPS to
+      //     web-admin (/api/payments/start), not native BLE.
+      // Re-add (with matching Android permissions: CAMERA / BLUETOOTH_SCAN /
+      // BLUETOOTH_CONNECT) when expo-camera or a BLE library is actually
+      // integrated. See PR notes for the audit decision.
       NSLocalNetworkUsageDescription:
         "Squarely connects to receipt printers on your local network.",
     },
@@ -39,6 +52,18 @@ const config: ExpoConfig = {
   android: {
     package: IS_DEV ? "com.squarely.app.dev" : "com.squarely.app",
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: "#ea580c" },
+    // Permissions are intentionally minimal:
+    //   - INTERNET: required for HTTPS to web-admin and Supabase.
+    //   - ACCESS_NETWORK_STATE: queue/online detection for offline-tolerant POS.
+    // NOT included (audited against the codebase 2026-06-08):
+    //   - CAMERA: no expo-camera / BarCodeScanner usage; barcode capture is
+    //     keyboard-wedge via TextInput onSubmitEditing.
+    //   - BLUETOOTH_SCAN / BLUETOOTH_CONNECT: no native BLE pairing.
+    //     chargeOnTerminal() dispatches to web-admin over HTTPS; barcode
+    //     scanners are HID/keyboard-wedge, not BLE.
+    //   - POST_NOTIFICATIONS: no expo-notifications usage yet. Add (declared
+    //     as "NOTIFICATIONS" via expo-notifications) when queued-print status
+    //     or refund alerts are introduced.
     permissions: ["INTERNET", "ACCESS_NETWORK_STATE"],
   },
   experiments: { typedRoutes: true },

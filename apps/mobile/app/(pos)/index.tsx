@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, ScrollView, useWindowDimensions } from "react-native";
+import { View, Text, TextInput, FlatList, Pressable, ActivityIndicator, Alert, Image, Modal, ScrollView, useWindowDimensions, KeyboardAvoidingView, Platform } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
 import { useCart } from "@/store/cart";
@@ -691,6 +691,10 @@ export default function Pos() {
 
       {/* Receipt modal — shown after a successful charge */}
       <Modal visible={receipt !== null} animationType="slide" transparent onRequestClose={() => setReceipt(null)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
         <Pressable onPress={() => setReceipt(null)} className="flex-1 bg-slate-900/40" />
         <View className="absolute bottom-0 left-0 right-0 max-h-[85%] rounded-t-3xl bg-white">
           <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -805,10 +809,15 @@ export default function Pos() {
             />
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* UPI scan-to-pay — customer scans the QR, cashier confirms receipt */}
       <Modal visible={showUpi} animationType="slide" transparent onRequestClose={() => setShowUpi(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
         <Pressable onPress={() => setShowUpi(false)} className="flex-1 bg-slate-900/40" />
         <View className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white">
           <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -858,6 +867,7 @@ export default function Pos() {
             />
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Modifier picker — shown when adding an item that has modifier groups.
