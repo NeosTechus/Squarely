@@ -14,6 +14,15 @@
 
   cleartextTrafficPermitted="false" in <base-config> blocks plain HTTP from
   the app entirely — defense in depth, the app should never need it in prod.
+
+  EXCEPTION: cleartext is explicitly allowed for RFC1918 private IPv4 ranges
+  (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) so the LAN-printer flow can
+  reach receipt printers on the venue's local network over plain HTTP. These
+  are non-routable on the public internet so the MITM threat that motivates
+  global cleartext blocking does not apply; the only attacker who can sit on
+  the LAN is someone already inside the venue's Wi-Fi, who can read the
+  printer traffic via other means regardless. See sendReceiptPrint.ts and
+  packages/lan-printer-agent/ for the data path.
 -->
 <network-security-config>
   <base-config cleartextTrafficPermitted="false">
@@ -21,6 +30,42 @@
       <certificates src="system" />
     </trust-anchors>
   </base-config>
+
+  <!-- LAN printer cleartext exception. Android's <domain> matcher does not
+       accept CIDR notation, so each private-IP /8 or /16 prefix is listed
+       individually with includeSubdomains="false" (IPs aren't DNS). Covers:
+         10.0.0.0/8         — class-A private
+         172.16.0.0/12      — class-B private (16 /16 blocks: 172.16..172.31)
+         192.168.0.0/16     — class-C private (256 /24 blocks)
+       This is a documented Android NSC pattern; the parser matches against
+       the literal connect-to hostname, so IP-literal URLs to these ranges
+       hit this config and bypass cleartextTrafficPermitted=false above. -->
+  <domain-config cleartextTrafficPermitted="true">
+    <!-- 10.0.0.0/8 -->
+    <domain includeSubdomains="false">10.0.0.0</domain>
+    <!-- 172.16.0.0/12 — list each /16 in the block -->
+    <domain includeSubdomains="false">172.16.0.0</domain>
+    <domain includeSubdomains="false">172.17.0.0</domain>
+    <domain includeSubdomains="false">172.18.0.0</domain>
+    <domain includeSubdomains="false">172.19.0.0</domain>
+    <domain includeSubdomains="false">172.20.0.0</domain>
+    <domain includeSubdomains="false">172.21.0.0</domain>
+    <domain includeSubdomains="false">172.22.0.0</domain>
+    <domain includeSubdomains="false">172.23.0.0</domain>
+    <domain includeSubdomains="false">172.24.0.0</domain>
+    <domain includeSubdomains="false">172.25.0.0</domain>
+    <domain includeSubdomains="false">172.26.0.0</domain>
+    <domain includeSubdomains="false">172.27.0.0</domain>
+    <domain includeSubdomains="false">172.28.0.0</domain>
+    <domain includeSubdomains="false">172.29.0.0</domain>
+    <domain includeSubdomains="false">172.30.0.0</domain>
+    <domain includeSubdomains="false">172.31.0.0</domain>
+    <!-- 192.168.0.0/16 -->
+    <domain includeSubdomains="false">192.168.0.0</domain>
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </domain-config>
 
   <!-- Web admin (Vercel-hosted). Pins squarely-admin.vercel.app and any
        sibling vercel.app host the app may reach. -->

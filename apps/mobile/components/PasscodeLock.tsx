@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View, Text, Pressable, Modal } from "react-native";
+import { useEffect, useState } from "react";
+import { View, Text, Pressable, Modal, BackHandler } from "react-native";
 import { useDevicePasscode } from "@/lib/useDevicePasscode";
 import { useUnlock } from "@/store/lock";
 import { useMerchantTheme } from "@/lib/useMerchantTheme";
@@ -20,7 +20,20 @@ export function PasscodeLock() {
 
   // Fail closed: only hide the lock when we know the passcode is off, or this
   // session has been unlocked. Loading / error / unknown all stay locked.
-  if (unlocked || status === "off") return null;
+  const locked = !unlocked && status !== "off";
+
+  // Swallow the Android hardware Back press while the lock is visible — the
+  // gate is meant to be unbypassable, so back must not dismiss the modal or
+  // pop the underlying navigator out of POS/Kiosk. The `<Modal>`'s
+  // onRequestClose below is a separate no-op for the case where RN routes the
+  // back press to the Modal itself rather than this listener.
+  useEffect(() => {
+    if (!locked) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => sub.remove();
+  }, [locked]);
+
+  if (!locked) return null;
 
   const press = async (d: string) => {
     setErr(false);
@@ -46,7 +59,7 @@ export function PasscodeLock() {
   const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
 
   return (
-    <Modal visible transparent={false} animationType="fade">
+    <Modal visible transparent={false} animationType="fade" onRequestClose={() => {}}>
       <View className="flex-1 items-center justify-center bg-slate-900 px-8">
         <Text className="text-2xl font-bold text-white">Enter passcode</Text>
         <Text className="mt-1 text-sm text-white/60">Ask a manager if you don&apos;t have it</Text>

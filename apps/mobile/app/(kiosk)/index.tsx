@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView } from "react-native";
+import { View, Text, TextInput, Pressable, FlatList, ActivityIndicator, Image, ImageBackground, ScrollView, AppState } from "react-native";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenContainer } from "@squarely/ui-mobile";
@@ -231,7 +231,18 @@ export default function Kiosk() {
     const iv = setInterval(() => {
       if (Date.now() - lastActivity.current > IDLE_MS) resetAll();
     }, 5000);
-    return () => clearInterval(iv);
+    // Android Doze throttles setInterval while the app is backgrounded — when
+    // the device comes back to 'active' the first tick can fire immediately and
+    // wipe a customer's cart just because the screen briefly went off. Reset
+    // the activity timestamp on resume so the post-resume tick is treated as
+    // fresh activity.
+    const appSub = AppState.addEventListener("change", (next) => {
+      if (next === "active") lastActivity.current = Date.now();
+    });
+    return () => {
+      clearInterval(iv);
+      appSub.remove();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 

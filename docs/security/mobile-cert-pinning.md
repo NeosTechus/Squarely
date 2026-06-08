@@ -19,12 +19,74 @@ TLS handshake to Supabase will fail.
 
 ## Scope
 
-| Platform | Pinned? | Mechanism                                                          |
-|----------|---------|--------------------------------------------------------------------|
-| Android  | Yes     | `network_security_config.xml` via `expo-build-properties`          |
-| iOS      | **No**  | Gap — ATS does not support SPKI pinning. TrustKit follow-up below. |
+| Platform | Pinned? | Mechanism                                                                                                  |
+|----------|---------|------------------------------------------------------------------------------------------------------------|
+| Android  | Yes     | Custom Expo config plugin (`apps/mobile/plugins/with-network-security-config.js`) — copies the XML into `android/app/src/main/res/xml/` and patches the `<application>` tag in `AndroidManifest.xml` with `android:networkSecurityConfig=@xml/network_security_config`. |
+| iOS      | **No**  | Gap — ATS does not support SPKI pinning. TrustKit follow-up below.                                         |
 
 Preview channel iOS does not pin. Production iOS does not pin yet.
+
+### How the plugin works
+
+The plugin runs two Expo config mods at prebuild time:
+
+1. **`withDangerousMod` (android)** — copies
+   `apps/mobile/cert-pinning/network_security_config.xml` into
+   `android/app/src/main/res/xml/network_security_config.xml`. This overwrites
+   any local edits on each `expo prebuild` — the canonical source of truth is
+   the file under `apps/mobile/cert-pinning/`. Before copying, the plugin
+   scans the XML for `REPLACE_WITH_LIVE_HASH` placeholder tokens and emits a
+   loud `console.warn` if any are still present (see "Placeholder guard"
+   below).
+2. **`withAndroidManifest` (android)** — sets
+   `android:networkSecurityConfig=@xml/network_security_config` on the
+   `<application>` element. If another plugin has already written a different
+   value to that attribute, the plugin throws rather than silently clobbering
+   it.
+
+Both mods are android-scoped by Expo's design (`withAndroidManifest`
+registers under `config.mods.android.manifest`, `withDangerousMod` takes an
+explicit `['android', action]` tuple), so the plugin is a clean no-op on iOS
+prebuilds — no platform guard is needed in our code.
+
+### Placeholder guard
+
+The plugin **does not throw** on placeholder pins; it emits a warning
+(prefixed `[with-network-security-config] WARNING:`) so dev builds, CI smoke
+tests, and contributors without access to extract live pins can still run
+`expo prebuild`. Production operators are expected to extract live hashes
+before shipping (see "Rotation procedure" below), at which point the warning
+goes away naturally. If a production build deliberately needs to ship with
+placeholders (uncommon — usually only for staging a kill-switch build), set
+`EXPO_BUILD_ALLOW_PLACEHOLDER_PINS=1` in the EAS build env to acknowledge
+the warning. The warning still fires; the env var only documents intent in
+the build log.
+
+### Dev/Metro and LAN-printer cleartext
+
+`<base-config cleartextTrafficPermitted="false">` blocks plain HTTP from the
+app entirely, with two exceptions encoded in the XML:
+
+- **RFC1918 private IPv4 ranges** — `10.0.0.0/8`, `172.16.0.0/12`, and
+  `192.168.0.0/16` are allowed to use cleartext via dedicated
+  `<domain-config cleartextTrafficPermitted="true">` blocks. This is required
+  because the LAN-printing feature reaches receipt printers at IP literals on
+  the venue's local Wi-Fi over plain HTTP. The mobile app does not directly
+  connect to printer IPs in the standard receipt flow (`sendReceiptPrint.ts`
+  POSTs to the admin host over HTTPS, and `@squarely/lan-printer-agent` does
+  the cleartext printer hop from a separate Node process), but the exception
+  is documented in the NSC so any future direct-print path on Android works
+  without re-opening this audit. The MITM threat that motivates global
+  cleartext blocking does not apply to non-routable LAN ranges.
+- **Metro dev-client connection** — the NSC is applied to **all** Android
+  build variants (debug, dev-client, preview, production) because Expo
+  config plugins do not natively branch on `EAS_BUILD_PROFILE` at mod time
+  without dangerous-mod gymnastics. In practice this is OK because Metro
+  servers run on developers' machines, which sit inside the RFC1918 ranges
+  carved out above — `expo start --tunnel` and direct LAN connections to
+  `http://192.168.x.y:8081` both succeed under this NSC. If a developer runs
+  Metro on a public-IP host (rare), they need to temporarily remove the
+  `android:networkSecurityConfig` attribute from the merged manifest.
 
 ## Extracting the live SPKI SHA-256 hash
 
@@ -100,7 +162,15 @@ and ATS minimums.
 
 ## Files
 
-- `apps/mobile/cert-pinning/network_security_config.xml` — the pin set.
-- `apps/mobile/app.config.ts` — wires the XML into the Android build via
-  `expo-build-properties.android.networkSecurityConfig`.
+- `apps/mobile/cert-pinning/network_security_config.xml` — the pin set
+  (canonical source of truth; copied into `android/app/src/main/res/xml/`
+  on each prebuild).
+- `apps/mobile/plugins/with-network-security-config.js` — the custom Expo
+  config plugin (`withDangerousMod` copy + `withAndroidManifest` patch) that
+  installs the XML and wires the `<application>` attribute. Also contains
+  the placeholder-pin warning and the
+  `android:networkSecurityConfig`-overwrite guard described above.
+- `apps/mobile/app.config.ts` — registers
+  `./plugins/with-network-security-config` in the `plugins` array so the
+  mods run during prebuild.
 - `docs/security/mobile-cert-pinning.md` — this runbook.

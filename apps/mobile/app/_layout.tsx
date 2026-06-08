@@ -15,13 +15,28 @@ export default function RootLayout() {
   const hydrate = useBootMode((s) => s.hydrate);
   const hydrateImpersonation = useImpersonation((s) => s.hydrate);
   useEffect(() => {
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+    let hidden = false;
+    const hide = () => {
+      if (hidden) return;
+      hidden = true;
+      SplashScreen.hideAsync().catch(() => {});
+    };
+    // Watchdog: if AsyncStorage stalls (slow Android cold start, corrupted
+    // mmkv, etc.) we still want to drop the splash within a bounded window so
+    // the user sees the auth screen rather than an indefinitely frozen logo.
+    watchdog = setTimeout(hide, 6000);
     (async () => {
       try {
         await Promise.all([hydrate(), hydrateImpersonation()]);
       } finally {
-        SplashScreen.hideAsync().catch(() => {});
+        if (watchdog) clearTimeout(watchdog);
+        hide();
       }
     })();
+    return () => {
+      if (watchdog) clearTimeout(watchdog);
+    };
   }, [hydrate, hydrateImpersonation]);
   return (
     <Providers>

@@ -10,6 +10,8 @@ import {
   Modal,
   ScrollView,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, ScreenContainer, Card } from "@squarely/ui-mobile";
@@ -126,6 +128,12 @@ export default function Register() {
     // setTimeout so any modal close animation can settle before we steal focus back.
     setTimeout(() => scanRef.current?.focus(), 50);
   };
+  // Register is built for USB / Bluetooth-HID barcode scanners — those send
+  // keystrokes without ever needing the soft keyboard. On Android the focused
+  // TextInput would otherwise pop the soft keyboard over the cart on every
+  // screen entry and modal close. Default to keyboard suppressed; let the
+  // cashier tap "Type" to bring it up for a manual search.
+  const [softKeyboard, setSoftKeyboard] = useState(false);
 
   // UPI gateway (India scan-to-pay): same shape as POS, only present if enabled.
   const { data: upi } = useQuery({
@@ -499,18 +507,47 @@ export default function Register() {
 
         {/* Scan / search capture */}
         <View className="mb-3">
-          <TextInput
-            ref={scanRef}
-            value={query}
-            onChangeText={setQuery}
-            onSubmitEditing={onSubmitScan}
-            blurOnSubmit={false}
-            autoFocus
-            autoCorrect={false}
-            autoCapitalize="none"
-            placeholder="Scan or search…"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-base"
-          />
+          <View className="flex-row items-center gap-2">
+            <TextInput
+              ref={scanRef}
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={onSubmitScan}
+              blurOnSubmit={false}
+              autoFocus
+              autoCorrect={false}
+              autoCapitalize="none"
+              placeholder="Scan or search…"
+              // Suppress the Android soft keyboard for HID scanner ergonomics
+              // (see softKeyboard state above). iOS ignores this prop and
+              // already hides the keyboard when an external HID keyboard is
+              // connected.
+              showSoftInputOnFocus={Platform.OS === "android" ? softKeyboard : undefined}
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base"
+            />
+            {Platform.OS === "android" ? (
+              <Pressable
+                onPress={() => {
+                  setSoftKeyboard((v) => {
+                    const next = !v;
+                    // Refocus so the keyboard state actually applies on the next
+                    // focus cycle (Android only re-reads showSoftInputOnFocus on
+                    // focus, not on prop change).
+                    setTimeout(() => {
+                      scanRef.current?.blur();
+                      setTimeout(() => scanRef.current?.focus(), 30);
+                    }, 0);
+                    return next;
+                  });
+                }}
+                className="rounded-xl border border-slate-300 bg-white px-3 py-3"
+              >
+                <Text className="text-xs font-semibold text-slate-600">
+                  {softKeyboard ? "Hide" : "Type"}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
           {/* Live search dropdown */}
           {query.trim().length > 0 && !looksLikeBarcode(query.trim()) && searchResults.length > 0 ? (
             <View className="mt-1 rounded-xl border border-slate-200 bg-white">
@@ -666,6 +703,10 @@ export default function Register() {
         transparent
         onRequestClose={() => setWeighedPrompt(null)}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
         <Pressable onPress={() => setWeighedPrompt(null)} className="flex-1 bg-slate-900/40" />
         <View className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white">
           <View className="flex-row items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -714,6 +755,7 @@ export default function Register() {
             );
           })() : null}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Quick-add unknown barcode */}
@@ -723,6 +765,10 @@ export default function Register() {
         transparent
         onRequestClose={() => setQuickAdd(null)}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
         <Pressable
           onPress={() => { setQuickAdd(null); refocusScan(); }}
           className="flex-1 bg-slate-900/40"
@@ -795,6 +841,7 @@ export default function Register() {
             </View>
           ) : null}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* UPI scan-to-pay — same pattern as the POS */}
