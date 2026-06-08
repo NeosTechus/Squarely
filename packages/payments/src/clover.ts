@@ -60,7 +60,7 @@ export class CloverProvider implements PaymentProvider {
   async cancel(): Promise<{ ok: boolean }> {
     return { ok: false };
   }
-  async refund(paymentId: string, amountCents: number, currency?: string) {
+  async refund(paymentId: string, amountCents: number, currency: string) {
     // Clover derives the refund currency from the merchant's account currency;
     // we accept `currency` to honor the PaymentProvider contract but don't put
     // it on the wire.

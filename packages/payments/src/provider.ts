@@ -38,11 +38,17 @@ export interface PaymentProvider {
   checkStatus(pollToken: string, opts?: { merchantId: string; terminalId: string }): Promise<PaymentStatus>;
   cancel(pollToken: string, opts?: { merchantId: string; terminalId: string }): Promise<{ ok: boolean }>;
   /**
-   * Refund a payment. `currency` should be the originating order/payment
-   * currency (ISO-4217). It is optional only so adapters whose upstream API
-   * derives the currency from the original payment (Stripe, Valor) can ignore
-   * it — adapters that send the currency in the request body MUST require it
-   * at the call site and never default to a hardcoded value like "USD".
+   * Refund a payment. `currency` is the originating order/payment currency
+   * (ISO-4217) and is REQUIRED at the type level — callers must thread the
+   * value through from the order/merchant so adapters never default to a
+   * hardcoded value like "USD".
+   *
+   * Adapters whose upstream API derives the currency from the original
+   * payment (Stripe, Clover, Authorize.Net, PayPal) MUST accept-and-ignore
+   * the parameter (`void currency;`) — they still satisfy the interface but
+   * never put it on the wire. Adapters that DO put it on the wire (Square,
+   * Adyen, Valor) rely on the type system to keep the call site safe — no
+   * runtime guard required.
    */
-  refund(paymentId: string, amountCents: number, currency?: string): Promise<{ ok: boolean; refund_id?: string; error?: string }>;
+  refund(paymentId: string, amountCents: number, currency: string): Promise<{ ok: boolean; refund_id?: string; error?: string }>;
 }

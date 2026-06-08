@@ -1,29 +1,22 @@
 import { NextResponse } from "next/server";
-import { getStripe, subscriptionFromStripeEvent } from "@squarely/billing";
+import type Stripe from "stripe";
+import { subscriptionFromStripeEvent } from "@squarely/billing";
 import { getServiceSupabase } from "@/lib/supabase";
+import { verifyWebhook } from "@/lib/webhookSignature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const sig = req.headers.get("stripe-signature");
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!sig || !secret) {
-    return NextResponse.json({ error: "missing-signature" }, { status: 400 });
+  // Signature verification is delegated to the shared harness so the policy
+  // (constant-time compare, no internal detail in the response, single body
+  // read) is enforced in one place for every future webhook too.
+  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+  const result = await verifyWebhook<Stripe.Event>(req, { kind: "stripe", secret });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
-  const stripe = getStripe();
-  const raw = await req.text();
-
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(raw, sig, secret);
-  } catch (err) {
-    // Don't echo internal signature-mismatch detail back to the caller. The
-    // error code is enough for legit Stripe to retry; ops can diagnose via
-    // server logs.
-    console.error("[stripe-webhook] signature check failed", err);
-    return NextResponse.json({ error: "invalid-signature" }, { status: 400 });
-  }
+  const event = result.payload;
 
   const supabase = getServiceSupabase();
 

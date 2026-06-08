@@ -14,13 +14,29 @@ interface GatewayState {
   enabled: boolean;
   isDefault: boolean;
   config: Record<string, string>;
+  configVersion: number;
+  configRotatedAt: string | null;
 }
 type StateMap = Record<string, GatewayState>;
 
 function blankState(): StateMap {
   const m: StateMap = {};
-  for (const g of GATEWAY_CATALOG) m[g.id] = { enabled: false, isDefault: false, config: {} };
+  for (const g of GATEWAY_CATALOG)
+    m[g.id] = {
+      enabled: false,
+      isDefault: false,
+      config: {},
+      configVersion: 0,
+      configRotatedAt: null,
+    };
   return m;
+}
+
+function daysSince(iso: string | null): number | null {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return Math.floor(ms / 86400000);
 }
 
 export function GatewayEditor({ merchantId }: { merchantId: string }) {
@@ -49,6 +65,8 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
         enabled: r.enabled,
         isDefault: r.is_default,
         config: { ...(r.config ?? {}) },
+        configVersion: r.config_version ?? 0,
+        configRotatedAt: r.config_rotated_at ?? null,
       };
     }
     setState(next);
@@ -56,7 +74,15 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
 
   const saveGateway = useMutation({
     mutationFn: async ({ gateway, makeDefault }: { gateway: GatewayPlugin; makeDefault?: boolean }) => {
-      const s = state[gateway.id] ?? { enabled: false, isDefault: false, config: {} };
+      const s =
+        state[gateway.id] ??
+        ({
+          enabled: false,
+          isDefault: false,
+          config: {},
+          configVersion: 0,
+          configRotatedAt: null,
+        } as GatewayState);
       const r = await saveMerchantGateway({
         merchantId,
         provider: gateway.id,
@@ -76,13 +102,29 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
 
   function patch(id: string, p: Partial<GatewayState>) {
     setState((prev) => {
-      const cur = prev[id] ?? { enabled: false, isDefault: false, config: {} };
+      const cur =
+        prev[id] ??
+        ({
+          enabled: false,
+          isDefault: false,
+          config: {},
+          configVersion: 0,
+          configRotatedAt: null,
+        } as GatewayState);
       return { ...prev, [id]: { ...cur, ...p } };
     });
   }
   function setConfigField(id: string, key: string, value: string) {
     setState((prev) => {
-      const cur = prev[id] ?? { enabled: false, isDefault: false, config: {} };
+      const cur =
+        prev[id] ??
+        ({
+          enabled: false,
+          isDefault: false,
+          config: {},
+          configVersion: 0,
+          configRotatedAt: null,
+        } as GatewayState);
       return { ...prev, [id]: { ...cur, config: { ...cur.config, [key]: value } } };
     });
   }
@@ -110,6 +152,21 @@ export function GatewayEditor({ merchantId }: { merchantId: string }) {
                 {s.isDefault && s.enabled ? (
                   <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">Default</span>
                 ) : null}
+                {(() => {
+                  const d = daysSince(s.configRotatedAt);
+                  if (d === null || s.configVersion === 0) return null;
+                  const stale = d > 90;
+                  return (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        stale ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"
+                      }`}
+                      title={`Config v${s.configVersion} rotated ${new Date(s.configRotatedAt!).toLocaleDateString()}`}
+                    >
+                      Last rotated: {d}d ago
+                    </span>
+                  );
+                })()}
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${

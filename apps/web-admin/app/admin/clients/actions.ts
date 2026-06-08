@@ -361,6 +361,8 @@ export interface GatewayRow {
   is_default: boolean;
   config: Record<string, string>;
   public_config: Record<string, string>;
+  config_version: number;
+  config_rotated_at: string | null;
 }
 
 /**
@@ -376,7 +378,9 @@ export async function listMerchantGateways(
   const { svc } = auth;
   const { data, error } = await (svc as any)
     .from("merchant_payment_gateways")
-    .select("provider, enabled, is_default, config, public_config")
+    .select(
+      "provider, enabled, is_default, config, public_config, config_version, config_rotated_at",
+    )
     .eq("merchant_id", merchantId);
   if (error) return { ok: false, error: error.message };
   return {
@@ -387,8 +391,32 @@ export async function listMerchantGateways(
       is_default: Boolean(r.is_default),
       config: (r.config ?? {}) as Record<string, string>,
       public_config: (r.public_config ?? {}) as Record<string, string>,
+      config_version: Number(r.config_version ?? 1),
+      config_rotated_at: (r.config_rotated_at as string | null) ?? null,
     })),
   };
+}
+
+/**
+ * Returns true iff `next` differs from `prev` on any key — a new key was
+ * added, an existing key changed, or a key was removed. Used to decide
+ * whether saveMerchantGateway should bump config_version. We compare the
+ * entire config (not just secret fields) because every per-provider field
+ * other than the explicit PUBLIC_CONFIG_KEYS subset is treated as a secret
+ * by the schema, and even a public-field change (e.g. switching Square
+ * `environment` from sandbox to production) often co-occurs with a
+ * processor-side rotation worth tracking.
+ */
+function configChanged(
+  prev: Record<string, string> | null | undefined,
+  next: Record<string, string>,
+): boolean {
+  const a = prev ?? {};
+  const keys = new Set([...Object.keys(a), ...Object.keys(next)]);
+  for (const k of keys) {
+    if ((a[k] ?? "") !== (next[k] ?? "")) return true;
+  }
+  return false;
 }
 
 /**
@@ -396,6 +424,11 @@ export async function listMerchantGateways(
  * config into a public subset (mirrored into public_config) and the full
  * config (which keeps the secrets). If makeDefault is true, clears the
  * is_default flag on every other gateway for this merchant first.
+ *
+ * Rotation tracking: when the config payload changes (new row, or any field
+ * differs from what's already stored), we bump `config_version` and stamp
+ * `config_rotated_at = now()`. A pure enabled/is_default toggle does NOT bump
+ * the version, so the rotation clock isn't reset by routine toggles.
  */
 export async function saveMerchantGateway(input: {
   merchantId: string;
@@ -416,6 +449,20 @@ export async function saveMerchantGateway(input: {
     if (v !== undefined && v !== "") publicConfig[k] = v;
   }
 
+  // Read the prior row so we can detect whether the secret/config payload
+  // changed. A pure enabled/is_default toggle must NOT bump config_version.
+  const { data: prior } = await (svc as any)
+    .from("merchant_payment_gateways")
+    .select("config, config_version")
+    .eq("merchant_id", input.merchantId)
+    .eq("provider", input.provider)
+    .maybeSingle();
+
+  const priorConfig = (prior?.config ?? null) as Record<string, string> | null;
+  const priorVersion = Number(prior?.config_version ?? 0); // 0 = brand-new row
+  const rotated = configChanged(priorConfig, input.config);
+  const nowIso = new Date().toISOString();
+
   if (input.makeDefault) {
     const { error: clearErr } = await (svc as any)
       .from("merchant_payment_gateways")
@@ -425,25 +472,38 @@ export async function saveMerchantGateway(input: {
   }
 
   const isDefault = input.makeDefault ? true : input.isDefault;
-  const { error } = await (svc as any).from("merchant_payment_gateways").upsert(
-    {
-      merchant_id: input.merchantId,
-      provider: input.provider,
-      enabled: input.enabled,
-      is_default: isDefault && input.enabled,
-      config: input.config,
-      public_config: publicConfig,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "merchant_id,provider" },
-  );
+  // New row: version starts at 1, rotated_at = now.
+  // Existing row with config change: version = prior+1, rotated_at = now.
+  // Existing row, no config change: keep version, leave rotated_at untouched
+  //   (we do this by omitting the column from the upsert payload below).
+  const isNewRow = !prior;
+  const nextVersion = isNewRow ? 1 : rotated ? priorVersion + 1 : priorVersion;
+
+  const payload: Record<string, unknown> = {
+    merchant_id: input.merchantId,
+    provider: input.provider,
+    enabled: input.enabled,
+    is_default: isDefault && input.enabled,
+    config: input.config,
+    public_config: publicConfig,
+    updated_at: nowIso,
+    config_version: nextVersion,
+  };
+  if (isNewRow || rotated) payload.config_rotated_at = nowIso;
+
+  const { error } = await (svc as any)
+    .from("merchant_payment_gateways")
+    .upsert(payload, { onConflict: "merchant_id,provider" });
   if (error) return { ok: false, error: error.message };
 
   await recordAudit(svc, {
     actor: actorId,
     action: "save_gateway",
     merchant_id: input.merchantId,
-    detail: input.provider,
+    detail:
+      rotated || isNewRow
+        ? `${input.provider} v${nextVersion} (rotated)`
+        : `${input.provider} v${nextVersion}`,
   });
   return { ok: true };
 }

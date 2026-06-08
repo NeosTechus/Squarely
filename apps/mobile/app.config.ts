@@ -59,6 +59,13 @@ const config: ExpoConfig = {
     // Build for arm64 only — covers essentially all modern devices and roughly
     // halves the universal APK (which otherwise bundles 4 CPU architectures).
     "./plugins/with-arm64.js",
+    // TLS certificate pinning (Android only). Copies
+    // cert-pinning/network_security_config.xml into the native project at
+    // prebuild and patches AndroidManifest's <application> tag.
+    // Pinned hosts: *.vercel.app (web admin), *.supabase.co (Supabase project).
+    // Rotation runbook: docs/security/mobile-cert-pinning.md.
+    // iOS does not pin yet — ATS can't pin SPKI without a native lib (TrustKit).
+    "./plugins/with-network-security-config.js",
   ],
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

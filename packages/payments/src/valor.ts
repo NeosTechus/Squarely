@@ -95,16 +95,17 @@ export class ValorProvider implements PaymentProvider {
     return { ok: res.ok };
   }
 
-  async refund(paymentId: string, amountCents: number, currency?: string) {
-    // Valor derives the refund currency from the originating transaction; we
-    // forward it when present but never hardcode "USD".
+  async refund(paymentId: string, amountCents: number, currency: string) {
+    // Valor accepts the originating transaction currency on the wire. The
+    // PaymentProvider contract guarantees `currency` is non-empty at the type
+    // level; no runtime guard needed.
     const res = await fetch(`${this.base()}/transactions/refund`, {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify({
         transaction_id: paymentId,
         amount: (amountCents / 100).toFixed(2),
-        ...(currency ? { currency } : {}),
+        currency,
       }),
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };

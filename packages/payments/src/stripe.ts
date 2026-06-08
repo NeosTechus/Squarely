@@ -63,7 +63,7 @@ export class StripeProvider implements PaymentProvider {
     return { ok: r.ok };
   }
 
-  async refund(paymentId: string, amountCents: number, currency?: string) {
+  async refund(paymentId: string, amountCents: number, currency: string) {
     // Stripe derives the refund currency from the PaymentIntent — `currency`
     // is accepted to honor the PaymentProvider contract but isn't sent.
     void currency;

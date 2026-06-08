@@ -113,7 +113,7 @@ export class AuthorizeNetProvider implements PaymentProvider {
   async cancel(): Promise<{ ok: boolean }> {
     return { ok: false };
   }
-  async refund(paymentId: string, amountCents: number, currency?: string) {
+  async refund(paymentId: string, amountCents: number, currency: string) {
     // Authorize.Net derives the refund currency from the original transaction;
     // we accept `currency` to honor the PaymentProvider contract but don't
     // place it on the wire. The refund itself is not implemented in this adapter.
