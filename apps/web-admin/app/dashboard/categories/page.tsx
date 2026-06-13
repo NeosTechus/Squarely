@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 
 interface Category {
   id: string;
@@ -68,7 +69,7 @@ export default function Categories() {
       setFormError(null);
       qc.invalidateQueries({ queryKey: ["categories", merchantId] });
     },
-    onError: (e) => setFormError((e as Error).message),
+    onError: (e) => setFormError(safeErrorMessage(e)),
   });
 
   return (
@@ -115,7 +116,7 @@ export default function Categories() {
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
-          <p className="p-6 text-sm text-red-600">{(error as Error).message}</p>
+          <p className="p-6 text-sm text-red-600">{safeErrorMessage(error)}</p>
         ) : categories.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">
             No categories yet — add your first above.

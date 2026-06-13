@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 import Reveal from "@/components/Reveal";
 
 interface ModifierGroup {
@@ -79,8 +80,21 @@ export default function Modifiers() {
 
   const addGroup = useMutation({
     mutationFn: async () => {
-      if (!groupName.trim()) {
+      if (!merchantId) {
+        throw new Error("No active merchant.");
+      }
+      const trimmed = groupName.trim();
+      if (!trimmed) {
         throw new Error("Enter a group name.");
+      }
+      // Reject duplicate group names (case-insensitive) within the same merchant.
+      // Names are how items reference groups in the UI, so duplicates are a
+      // common source of accidental cycles where two groups look identical.
+      const dupe = groups.some(
+        (g) => g.name.trim().toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (dupe) {
+        throw new Error("A group with that name already exists.");
       }
       const max = Number(groupMaxSelect);
       if (!Number.isInteger(max) || max < 1) {
@@ -88,7 +102,7 @@ export default function Modifiers() {
       }
       const { error } = await supabase.from("modifier_groups").insert({
         merchant_id: merchantId,
-        name: groupName.trim(),
+        name: trimmed,
         required: groupRequired,
         max_select: max,
       });
@@ -101,15 +115,22 @@ export default function Modifiers() {
       setGroupError(null);
       qc.invalidateQueries({ queryKey: ["modifier_groups", merchantId] });
     },
-    onError: (e) => setGroupError((e as Error).message),
+    onError: (e) => setGroupError(safeErrorMessage(e)),
   });
 
   const deleteGroup = useMutation({
     mutationFn: async (id: string) => {
+      if (!merchantId) {
+        throw new Error("No active merchant.");
+      }
+      // Belt-and-braces tenant scoping: even though RLS will reject a delete
+      // outside the active merchant, send the predicate explicitly so we never
+      // issue a cross-tenant statement from the client.
       const { error } = await supabase
         .from("modifier_groups")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("merchant_id", merchantId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -117,15 +138,45 @@ export default function Modifiers() {
       qc.invalidateQueries({ queryKey: ["modifier_groups", merchantId] });
       qc.invalidateQueries({ queryKey: ["modifier_options", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   const addOption = useMutation({
     mutationFn: async (groupId: string) => {
+      if (!merchantId) {
+        throw new Error("No active merchant.");
+      }
+      // Cycle / cross-tenant guard: confirm the target group belongs to a
+      // group we currently see for this merchant. The RLS policy on
+      // modifier_options derives merchant from modifier_groups via group_id,
+      // so this also blocks accidentally writing options under another
+      // merchant's group_id (which would otherwise be RLS-rejected, but
+      // we want the friendlier error path).
+      const parentGroup = groups.find((g) => g.id === groupId);
+      if (!parentGroup) {
+        throw new Error("Modifier group not found for this merchant.");
+      }
       const name = (optName[groupId] ?? "").trim();
       const priceRaw = (optPrice[groupId] ?? "").trim();
       if (!name) {
         throw new Error("Enter an option name.");
+      }
+      // Prevent circular references: an option can't be named the same as
+      // its parent group (a common shorthand for self-referencing groups),
+      // and option names must be unique within the group so traversal
+      // through options can't ever revisit the same node.
+      if (name.toLowerCase() === parentGroup.name.trim().toLowerCase()) {
+        throw new Error(
+          "Option name cannot match the parent group name (would create a circular reference).",
+        );
+      }
+      const dupe = options.some(
+        (o) =>
+          o.group_id === groupId &&
+          o.name.trim().toLowerCase() === name.toLowerCase(),
+      );
+      if (dupe) {
+        throw new Error("An option with that name already exists in this group.");
       }
       const dollars = priceRaw === "" ? 0 : parseFloat(priceRaw);
       if (Number.isNaN(dollars)) {
@@ -146,22 +197,37 @@ export default function Modifiers() {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["modifier_options", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   const deleteOption = useMutation({
     mutationFn: async (id: string) => {
+      if (!merchantId) {
+        throw new Error("No active merchant.");
+      }
+      // Confirm the option belongs to a group owned by this merchant before
+      // attempting the delete; RLS will reject cross-tenant deletes anyway,
+      // but this avoids round-tripping a request that would error.
+      const option = options.find((o) => o.id === id);
+      if (!option) {
+        throw new Error("Option not found for this merchant.");
+      }
+      const parent = groups.find((g) => g.id === option.group_id);
+      if (!parent) {
+        throw new Error("Option's group not found for this merchant.");
+      }
       const { error } = await supabase
         .from("modifier_options")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("group_id", parent.id);
       if (error) throw error;
     },
     onSuccess: () => {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["modifier_options", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   const fmtDelta = (c: number) => {
@@ -229,7 +295,7 @@ export default function Modifiers() {
         </p>
       ) : error ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-red-600">
-          {(error as Error).message}
+          {safeErrorMessage(error)}
         </p>
       ) : groups.length === 0 ? (
         <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">

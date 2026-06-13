@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 import Reveal from "@/components/Reveal";
 
 interface Customer {
@@ -67,7 +68,7 @@ export default function Customers() {
       setFormError(null);
       qc.invalidateQueries({ queryKey: ["customers", merchantId] });
     },
-    onError: (e) => setFormError((e as Error).message),
+    onError: (e) => setFormError(safeErrorMessage(e)),
   });
 
   const filtered = useMemo(() => {
@@ -161,7 +162,7 @@ export default function Customers() {
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
-          <p className="p-6 text-sm text-red-600">{(error as Error).message}</p>
+          <p className="p-6 text-sm text-red-600">{safeErrorMessage(error)}</p>
         ) : filtered.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">
             {customers.length === 0

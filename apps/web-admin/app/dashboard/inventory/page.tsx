@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 import Reveal from "@/components/Reveal";
 
 interface Location {
@@ -131,7 +132,7 @@ export default function Inventory() {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["inventory", merchantId, locationId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   function editFor(row: Row) {
@@ -222,7 +223,7 @@ export default function Inventory() {
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
-          <p className="p-6 text-sm text-red-600">{(error as Error).message}</p>
+          <p className="p-6 text-sm text-red-600">{safeErrorMessage(error)}</p>
         ) : !locationId ? (
           <p className="p-6 text-sm text-slate-500">No locations yet.</p>
         ) : rows.length === 0 ? (

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 import Reveal from "@/components/Reveal";
 
 interface OrderItemRow {
@@ -31,6 +32,11 @@ export default function Reports() {
     enabled: Boolean(merchantId),
     queryKey: ["reports", merchantId],
     queryFn: async (): Promise<OrderRow[]> => {
+      // Defensive: bail out if merchantId is somehow falsy by the time we run,
+      // so we never issue an unscoped global aggregate query.
+      if (!merchantId) {
+        throw new Error("No active merchant.");
+      }
       const { data: orders, error } = await supabase
         .from("orders")
         .select(
@@ -111,7 +117,7 @@ export default function Reports() {
       </Reveal>
 
       {error ? (
-        <p className="text-sm text-red-600">{(error as Error).message}</p>
+        <p className="text-sm text-red-600">{safeErrorMessage(error)}</p>
       ) : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
