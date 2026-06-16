@@ -1,6 +1,7 @@
 "use server";
 
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
+import { recordAudit } from "@/lib/adminAudit";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -18,7 +19,7 @@ export type UpdatePlanInput = {
  * service-role client on success, or an error.
  */
 async function requirePlatformAdmin(): Promise<
-  | { ok: true; svc: ReturnType<typeof getServiceSupabase> }
+  | { ok: true; svc: ReturnType<typeof getServiceSupabase>; actorId: string }
   | { ok: false; error: string }
 > {
   const server = await getServerSupabase();
@@ -35,7 +36,7 @@ async function requirePlatformAdmin(): Promise<
     .maybeSingle();
   if (!admin) return { ok: false, error: "Not authorized." };
 
-  return { ok: true, svc };
+  return { ok: true, svc, actorId: user.id };
 }
 
 /**
@@ -69,7 +70,7 @@ export async function updatePlan(input: UpdatePlanInput): Promise<ActionResult> 
 
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { error } = await (svc as any)
     .from("plans")
@@ -83,5 +84,10 @@ export async function updatePlan(input: UpdatePlanInput): Promise<ActionResult> 
     .eq("id", input.id);
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "update_plan",
+    detail: `Plan ${input.id}: name="${display_name}", monthly=${monthly}c, yearly=${yearly}c, device_limit=${device_limit ?? "unlimited"}, features=[${features.join(", ")}]`,
+  });
   return { ok: true };
 }

@@ -2,6 +2,7 @@
 
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
+import { recordAudit } from "@/lib/adminAudit";
 
 export type AnnouncementRow = {
   id: string;
@@ -18,7 +19,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
  * service-role client on success, or an error.
  */
 async function requirePlatformAdmin(): Promise<
-  | { ok: true; svc: ReturnType<typeof getServiceSupabase> }
+  | { ok: true; svc: ReturnType<typeof getServiceSupabase>; actorId: string }
   | { ok: false; error: string }
 > {
   const server = await getServerSupabase();
@@ -35,7 +36,7 @@ async function requirePlatformAdmin(): Promise<
     .maybeSingle();
   if (!admin) return { ok: false, error: "Not authorized." };
 
-  return { ok: true, svc };
+  return { ok: true, svc, actorId: user.id };
 }
 
 /** List all announcements, newest first. */
@@ -65,12 +66,20 @@ export async function createAnnouncement(input: {
 
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
-  const { error } = await (svc as any)
+  const { data: inserted, error } = await (svc as any)
     .from("announcements")
-    .insert({ title, body, active: true });
+    .insert({ title, body, active: true })
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "create_announcement",
+    detail: `Announcement ${inserted?.id ?? "?"}: "${title}"`,
+  });
 
   // Notify all merchant owners. Email failure must never break creation.
   try {
@@ -104,7 +113,7 @@ export async function setAnnouncementActive(
 ): Promise<ActionResult> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { error } = await (svc as any)
     .from("announcements")
@@ -112,6 +121,11 @@ export async function setAnnouncementActive(
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(svc, {
+    actor: actorId,
+    action: active ? "activate_announcement" : "deactivate_announcement",
+    detail: `Announcement ${id}`,
+  });
   return { ok: true };
 }
 
@@ -119,7 +133,7 @@ export async function setAnnouncementActive(
 export async function deleteAnnouncement(id: string): Promise<ActionResult> {
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return auth;
-  const { svc } = auth;
+  const { svc, actorId } = auth;
 
   const { error } = await (svc as any)
     .from("announcements")
@@ -127,5 +141,10 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(svc, {
+    actor: actorId,
+    action: "delete_announcement",
+    detail: `Announcement ${id}`,
+  });
   return { ok: true };
 }
