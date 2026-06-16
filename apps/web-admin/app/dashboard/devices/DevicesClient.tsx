@@ -178,6 +178,28 @@ export default function DevicesClient() {
     onError: (e) => setPErr(safeErrorMessage(e)),
   });
 
+  // Mutation: pop the cash drawer attached to a specific printer (queues a
+  // drawer-only print job; the LAN agent claims and sends the ESC-POS pulse).
+  const kickDrawer = useMutation({
+    mutationFn: async (printerId: string) => {
+      const supabase = createBrowserClient();
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Not authenticated.");
+      const r = await fetch("/api/printers/kick", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ printerId }),
+      });
+      const json = (await r.json()) as { ok: boolean; error?: string };
+      if (!r.ok || !json.ok) throw new Error(json.error ?? "Failed to open drawer.");
+    },
+    onError: (e) => setPErr(safeErrorMessage(e)),
+  });
+
   const toggleActive = useMutation({
     mutationFn: async ({
       table,
@@ -488,6 +510,17 @@ export default function DevicesClient() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {p.active && p.supports_cash_drawer ? (
+                          <button
+                            type="button"
+                            disabled={kickDrawer.isPending}
+                            onClick={() => kickDrawer.mutate(p.id)}
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            title="Pop the cash drawer attached to this printer"
+                          >
+                            Open drawer
+                          </button>
+                        ) : null}
                         {!p.is_default ? (
                           <button
                             type="button"
