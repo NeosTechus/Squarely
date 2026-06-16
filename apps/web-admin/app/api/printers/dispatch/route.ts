@@ -38,6 +38,7 @@ interface OrderRow {
   surcharge_cents: number;
   tip_cents: number;
   total_cents: number;
+  payment_method: string | null;
   created_at: string;
   order_items: OrderItemRow[] | null;
 }
@@ -54,6 +55,7 @@ interface PrinterRow {
   merchant_id: string;
   kind: string;
   label: string;
+  supports_cash_drawer: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest) {
   const { data: orderRaw, error: orderErr } = await (svc as any)
     .from("orders")
     .select(
-      "id, merchant_id, number, order_type, source, customer_name, subtotal_cents, discount_cents, tax_cents, surcharge_cents, tip_cents, total_cents, created_at, order_items(name_snapshot, unit_price_cents, quantity, notes, order_item_modifiers(name_snapshot, price_delta_cents))",
+      "id, merchant_id, number, order_type, source, customer_name, subtotal_cents, discount_cents, tax_cents, surcharge_cents, tip_cents, total_cents, payment_method, created_at, order_items(name_snapshot, unit_price_cents, quantity, notes, order_item_modifiers(name_snapshot, price_delta_cents))",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -133,7 +135,7 @@ export async function POST(req: NextRequest) {
   if (printerIdHint) {
     const { data } = await (svc as any)
       .from("printers")
-      .select("id, merchant_id, kind, label")
+      .select("id, merchant_id, kind, label, supports_cash_drawer")
       .eq("id", printerIdHint)
       .eq("merchant_id", order.merchant_id)
       .eq("active", true)
@@ -143,7 +145,7 @@ export async function POST(req: NextRequest) {
   if (!printer) {
     const { data } = await (svc as any)
       .from("printers")
-      .select("id, merchant_id, kind, label")
+      .select("id, merchant_id, kind, label, supports_cash_drawer")
       .eq("merchant_id", order.merchant_id)
       .eq("active", true)
       .order("is_default", { ascending: false })
@@ -182,6 +184,13 @@ export async function POST(req: NextRequest) {
     })),
   }));
 
+  // Open the cash drawer when this is a cash sale AND the printer reports
+  // a connected drawer. ESC-POS drawers pulse off the DK port on the
+  // receipt printer's RJ-12 jack, so the drawer must be wired to a printer
+  // we're already dispatching to.
+  const openCashDrawer =
+    order.payment_method === "cash" && printer.supports_cash_drawer === true;
+
   const xml = buildReceiptXml({
     header: {
       storeName: merchant.name ?? "Receipt",
@@ -204,6 +213,7 @@ export async function POST(req: NextRequest) {
       created_at: order.created_at,
       items,
     } as any,
+    openCashDrawer,
   });
 
   const { data: jobRow, error: insErr } = await (svc as any)
@@ -214,6 +224,7 @@ export async function POST(req: NextRequest) {
       printer_id: printer.id,
       status: "queued",
       payload: xml,
+      kick_drawer: openCashDrawer,
     })
     .select("id")
     .single();

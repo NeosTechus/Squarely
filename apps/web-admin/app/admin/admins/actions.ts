@@ -1,6 +1,7 @@
 "use server";
 
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
+import { recordAudit } from "@/lib/adminAudit";
 
 export type AdminRow = { userId: string; email: string; createdAt: string };
 
@@ -91,6 +92,11 @@ export async function addAdmin(email: string): Promise<ActionResult> {
     .insert({ user_id: target.id });
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(svc, {
+    actor: auth.userId,
+    action: "add_admin",
+    detail: `Granted platform-admin to ${normalized} (user ${target.id}).`,
+  });
   return { ok: true };
 }
 
@@ -110,5 +116,10 @@ export async function removeAdmin(userId: string): Promise<ActionResult> {
     .eq("user_id", userId);
   if (error) return { ok: false, error: error.message };
 
+  await recordAudit(svc, {
+    actor: auth.userId,
+    action: "remove_admin",
+    detail: `Revoked platform-admin from user ${userId}.`,
+  });
   return { ok: true };
 }

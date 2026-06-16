@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServiceSupabase } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { safeErrorMessage } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -165,16 +166,25 @@ export async function POST(req: NextRequest) {
   });
   if (!resp.ok) {
     const errBody = await resp.text();
+    console.error("[receipts/sms] Twilio error", resp.status, errBody);
     return NextResponse.json(
-      { ok: false, error: `SMS send failed (${resp.status}): ${errBody.slice(0, 200)}` },
+      { ok: false, error: safeErrorMessage(errBody, "SMS send failed.") },
       { status: 502 },
     );
   }
 
   // Best-effort: stamp receipt_printed_at on the order (we treat SMS as a form
   // of receipt delivery for the dashboard). supabase-js v2 builders are
-  // thenable-only — must await to actually fire the update.
-  await (svc as any).from("orders").update({ receipt_printed_at: new Date().toISOString() }).eq("id", orderId);
+  // thenable-only — must await to actually fire the update. The .eq on
+  // merchant_id is defense-in-depth: we already validated membership against
+  // order.merchant_id above, but service_role bypasses RLS so a forged
+  // orderId surviving a later refactor must not be able to mutate a sibling
+  // tenant's row.
+  await (svc as any)
+    .from("orders")
+    .update({ receipt_printed_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("merchant_id", order.merchant_id);
 
   return NextResponse.json({ ok: true });
 }

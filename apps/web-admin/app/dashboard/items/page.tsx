@@ -4,7 +4,50 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBrowserClient } from "@squarely/db/browser";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { safeErrorMessage } from "@/lib/redact";
 import Reveal from "@/components/Reveal";
+
+// Client-side image validation. Server-side enforcement still lives in the
+// Supabase storage bucket policy (allowed MIME types + size cap) and the RLS
+// policy that constrains the leading path segment to {auth.merchant_id}/.
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+function validateImage(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    return "Image must be a JPEG, PNG, WebP, or GIF.";
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return "Image must be 5 MB or smaller.";
+  }
+  if (file.size <= 0) {
+    return "Image file is empty.";
+  }
+  return null;
+}
+
+// Sanitize an uploaded file name so it cannot escape the merchant prefix
+// (no slashes, no leading dots, no whitespace) and the resulting object key
+// looks like `{merchantId}/{itemId}-{safeName}.{ext}`.
+function sanitizeImageName(name: string): { base: string; ext: string } | null {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0 || dot === name.length - 1) return null;
+  const rawExt = name.slice(dot + 1).toLowerCase();
+  if (!ALLOWED_IMAGE_EXTENSIONS.has(rawExt)) return null;
+  const rawBase = name.slice(0, dot);
+  const base =
+    rawBase
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/^[-.]+/, "")
+      .slice(0, 64) || "image";
+  return { base, ext: rawExt };
+}
 
 interface Item {
   id: string;
@@ -101,19 +144,23 @@ export default function Items() {
       setFormError(null);
       qc.invalidateQueries({ queryKey: ["items", merchantId] });
     },
-    onError: (e) => setFormError((e as Error).message),
+    onError: (e) => setFormError(safeErrorMessage(e)),
   });
 
   const deleteItem = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("items").delete().eq("id", id);
+      const { error } = await supabase
+        .from("items")
+        .delete()
+        .eq("id", id)
+        .eq("merchant_id", merchantId);
       if (error) throw error;
     },
     onSuccess: () => {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["items", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   const setVisibility = useMutation({
@@ -121,14 +168,15 @@ export default function Items() {
       const { error } = await supabase
         .from("items")
         .update(visibilityFlags(v))
-        .eq("id", id);
+        .eq("id", id)
+        .eq("merchant_id", merchantId);
       if (error) throw error;
     },
     onSuccess: () => {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["items", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   const setItemGroups = useMutation({
@@ -136,14 +184,15 @@ export default function Items() {
       const { error } = await supabase
         .from("items")
         .update({ modifier_group_ids: groupIds })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("merchant_id", merchantId);
       if (error) throw error;
     },
     onSuccess: () => {
       setRowError(null);
       qc.invalidateQueries({ queryKey: ["items", merchantId] });
     },
-    onError: (e) => setRowError((e as Error).message),
+    onError: (e) => setRowError(safeErrorMessage(e)),
   });
 
   function toggleItemGroup(it: Item, groupId: string) {
@@ -156,12 +205,51 @@ export default function Items() {
 
   async function uploadImage(itemId: string, file: File) {
     setRowError(null);
+    if (!merchantId) {
+      setRowError("No active merchant.");
+      return;
+    }
+    // Defensive: the storage RLS policy keys off the leading path segment
+    // matching auth.merchant_id, so reject any merchantId that doesn't look
+    // like a UUID before constructing the path. This prevents a malformed
+    // merchantId from producing a key that lands outside the per-merchant
+    // prefix (e.g. an empty value yielding "/itemId-...").
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(merchantId)) {
+      setRowError("Active merchant id is malformed.");
+      return;
+    }
+    // Defensive: itemId must also be a UUID so it can't inject a path
+    // separator and escape the merchant prefix.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemId)) {
+      setRowError("Item id is malformed.");
+      return;
+    }
+    const validationError = validateImage(file);
+    if (validationError) {
+      setRowError(validationError);
+      return;
+    }
+    const safeName = sanitizeImageName(file.name);
+    if (!safeName) {
+      setRowError("Image must be a JPEG, PNG, WebP, or GIF.");
+      return;
+    }
     setUploadingId(itemId);
     try {
-      const path = `${merchantId}/${itemId}-${file.name}`;
+      // Storage key MUST start with `{merchantId}/` so the bucket RLS policy
+      // can constrain reads/writes per-merchant and so different merchants
+      // can never collide on the same object key. sanitizeImageName has
+      // already stripped any slashes from the base, and itemId is validated
+      // above as a UUID, so the final path always lives under the merchant
+      // prefix.
+      const path = `${merchantId}/${itemId}-${Date.now()}-${safeName.base}.${safeName.ext}`;
       const { error: upErr } = await supabase.storage
         .from("item-images")
-        .upload(path, file, { upsert: true });
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+          cacheControl: "3600",
+        });
       if (upErr) throw upErr;
       const publicUrl = supabase.storage
         .from("item-images")
@@ -169,11 +257,12 @@ export default function Items() {
       const { error: updErr } = await supabase
         .from("items")
         .update({ image_url: publicUrl })
-        .eq("id", itemId);
+        .eq("id", itemId)
+        .eq("merchant_id", merchantId);
       if (updErr) throw updErr;
       qc.invalidateQueries({ queryKey: ["items", merchantId] });
     } catch (e) {
-      setRowError((e as Error).message);
+      setRowError(safeErrorMessage(e, "Image upload failed."));
     } finally {
       setUploadingId(null);
     }
@@ -235,7 +324,7 @@ export default function Items() {
         {isLoading ? (
           <p className="p-6 text-sm text-slate-500">Loading…</p>
         ) : error ? (
-          <p className="p-6 text-sm text-red-600">{(error as Error).message}</p>
+          <p className="p-6 text-sm text-red-600">{safeErrorMessage(error)}</p>
         ) : items.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">No items yet — add your first above.</p>
         ) : (

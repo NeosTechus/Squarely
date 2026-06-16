@@ -1,8 +1,28 @@
 "use server";
 
+import { headers } from "next/headers";
 import { getServiceSupabase, getServerSupabase } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { validateSignup } from "@/lib/signupValidation";
 
 export type SignUpResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Best-effort client-IP extraction. Vercel sets x-forwarded-for; we fall back
+ * to x-real-ip and cf-connecting-ip in case the deployment is fronted by a
+ * different proxy. Returns a stable key string even if no header is present
+ * so the rate limiter still works (one shared bucket for unknown-IP traffic).
+ */
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  const xff = h.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  const real = h.get("x-real-ip");
+  if (real) return real.trim();
+  const cf = h.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return "unknown";
+}
 
 /**
  * Stamp Terms/Privacy acceptance time on the merchant. Best-effort: wrapped so
@@ -34,17 +54,34 @@ export async function signUpMerchant(formData: {
   businessName: string;
   country?: string;
 }): Promise<SignUpResult> {
-  const email = formData.email.trim().toLowerCase();
-  const password = formData.password;
+  // Rate-limit by client IP: 5 signups per hour. Account creation is the
+  // single most expensive operation an anonymous caller can trigger (it
+  // provisions an auth user, a merchant row, a membership row, and triggers
+  // Supabase to send a confirmation/welcome email). Without this gate, an
+  // attacker can mass-create accounts to exhaust Supabase plan caps or weapon-
+  // ize Supabase's email-sending for spam/abuse against arbitrary inboxes.
+  const ip = await clientIp();
+  const rl = checkRateLimit(`signup:${ip}`, 5, 60 * 60_000);
+  if (!rl.allowed) {
+    return {
+      ok: false,
+      error: "Too many signup attempts. Please try again later.",
+    };
+  }
+
   const businessName = formData.businessName.trim();
   const country = formData.country?.trim().toUpperCase() || "US";
-
-  if (!email || !password || !businessName) {
+  if (!businessName) {
     return { ok: false, error: "All fields are required." };
   }
-  if (password.length < 8) {
-    return { ok: false, error: "Password must be at least 8 characters." };
-  }
+
+  // Strong policy: 8+ chars, letter+digit, not on common-password list.
+  // Diverged from the previous "length only" check that contradicted the
+  // marketing site's signupValidation.ts.
+  const cred = validateSignup(formData.email, formData.password);
+  if (!cred.ok) return { ok: false, error: cred.error };
+  const email = cred.email;
+  const password = formData.password;
 
   const svc = getServiceSupabase();
 

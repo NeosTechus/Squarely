@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, FlatList, Pressable, ActivityIndicator, useWindowDimensions } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Redirect } from "expo-router";
+import { useKeepAwake } from "expo-keep-awake";
 import { Card, ScreenContainer } from "@squarely/ui-mobile";
 import { supabase } from "@/lib/supabase";
 import { useActiveMerchant } from "@/lib/useActiveMerchant";
+import { useMerchantFeatures } from "@/lib/useMerchantFeatures";
 
 interface OrderItem {
   name_snapshot: string;
@@ -70,6 +73,13 @@ const AGE_BADGE: Record<"ok" | "warn" | "late", string> = {
 export default function Kds() {
   const qc = useQueryClient();
   const { data: merchantId } = useActiveMerchant();
+  const { data: features, isLoading: featuresLoading } = useMerchantFeatures();
+
+  // Keep the kitchen tablet awake while the KDS board is mounted. Without this,
+  // the Android default sleep timeout (30s–2min) will dim/lock the screen and
+  // hide incoming tickets + SLA escalations exactly when staff need them.
+  // Scoped to this screen (not app-wide) so POS/handheld doesn't burn battery.
+  useKeepAwake();
 
   // Tablet shows a 3-up board; phones get 1 column so cards aren't cramped.
   const { width } = useWindowDimensions();
@@ -81,6 +91,14 @@ export default function Kds() {
     const id = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(id);
   }, []);
+
+  // Per-order in-flight set: `advance.isPending` is a single boolean across the
+  // whole board, so without per-row gating a fast double-tap (or two terminals)
+  // can fire status:received→preparing→ready in one frame before React
+  // re-renders the disabled state. We track in-flight IDs and gate the button
+  // per-card. The conditional `.eq("status", order.status)` below is the
+  // durable defense — this Set just smooths the UI.
+  const [inFlight, setInFlight] = useState<Set<string>>(() => new Set());
 
   const { data: orders = [], isLoading } = useQuery({
     enabled: Boolean(merchantId),
@@ -123,14 +141,48 @@ export default function Kds() {
   const advance = useMutation({
     mutationFn: async (order: KdsOrder) => {
       const next = NEXT_STATUS[order.status];
-      const { error } = await (supabase as any)
+      // Conditional update: only flip the row if it's still in the status we
+      // observed when the tap landed. This makes a double-tap (or a second KDS
+      // terminal advancing the same ticket concurrently) into a no-op instead
+      // of double-advancing the order through two statuses in one frame.
+      const { data, error } = await (supabase as any)
         .from("orders")
         .update({ status: next })
-        .eq("id", order.id);
+        .eq("id", order.id)
+        .eq("status", order.status)
+        .select("id");
       if (error) throw error;
+      // 0 rows = someone else already advanced it; treat as success so the
+      // invalidate refreshes the board to the truth.
+      return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["kds-orders", merchantId] }),
+    onMutate: (order: KdsOrder) => {
+      setInFlight((prev) => {
+        const next = new Set(prev);
+        next.add(order.id);
+        return next;
+      });
+    },
+    onSettled: (_data, _err, order) => {
+      setInFlight((prev) => {
+        if (!prev.has(order.id)) return prev;
+        const next = new Set(prev);
+        next.delete(order.id);
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ["kds-orders", merchantId] });
+    },
   });
+
+  // Feature gate: if the platform super-admin disabled KDS for this merchant
+  // (e.g. billing downgrade / suspension), bounce back to the boot picker.
+  // The sticky boot mode in apps/mobile/app/index.tsx fast-paths straight here
+  // without re-checking merchant_features, so this is the only place we catch
+  // a mid-flight disablement. We wait for the features query to resolve so a
+  // brief loading flicker doesn't kick the kitchen offline.
+  if (!featuresLoading && features && !features.kds) {
+    return <Redirect href="/(boot)" />;
+  }
 
   return (
     <ScreenContainer>
@@ -188,7 +240,7 @@ export default function Kds() {
                 ))}
               </View>
               <Pressable
-                disabled={advance.isPending}
+                disabled={inFlight.has(item.id)}
                 onPress={() => advance.mutate(item)}
                 className="mt-4 items-center rounded-xl bg-slate-900 py-3 active:opacity-90"
               >
